@@ -30,6 +30,7 @@ import OpenAI.V1.Chat.Completions
     )
 import OpenAI.V1.Models (Model (..))
 import OpenAI.V1.ToolCall qualified as OpenAiTC
+import OpenAI.V1.Tool qualified as OpenAiTool
 import Relude
 import UnliftIO
 
@@ -70,16 +71,20 @@ runAiChatOpenAi
     -> [ToolDef es]
     -> Eff (AiChat ': es) a
     -> Eff es a
-runAiChatOpenAi settings _tools es = do
+runAiChatOpenAi settings tools es = do
     clientEnv <- liftIO . getClientEnv $ settings ^. #baseUrl
     let Methods{createChatCompletion} =
             makeMethods
                 clientEnv
                 (settings ^. #apiKey . typed @Text)
 
-    runChat createChatCompletion es
+    runChatCompletion createChatCompletion es
   where
-    runChat createChatCompletion = interpret \_ -> \case
+    runChatCompletion
+        :: (CreateChatCompletion -> IO ChatCompletionObject)
+        -> Eff (AiChat ': es) a
+        -> Eff es a
+    runChatCompletion createChatCompletion = interpret \_ -> \case
         RespondToConversation convId -> do
             fullConv <- getConversation convId
             response <-
@@ -87,6 +92,7 @@ runAiChatOpenAi settings _tools es = do
                     _CreateChatCompletion
                         { messages = V.fromList $ toOpenAIMessage <$> fullConv
                         , model = settings ^. #model . to Model
+                        , tools = Just . V.fromList $ mkTool <$> tools
                         }
             case response of
                 Left err ->
@@ -153,6 +159,14 @@ toOpenAIMessage msg = case msg of
                     , arguments = tc ^. #toolArgs . typed
                     }
             }
+
+mkTool :: ToolDef es -> OpenAiTool.Tool
+mkTool t = OpenAiTool.Tool_Function $ OpenAiTool.Function
+    { name = t ^. #name
+    , description = t ^. #description . to Just
+    , parameters = t ^. #parmeterSchema . to Just
+    , strict = Just True
+    }
 
 -- | Convert the reponse from OpenAI to the internal ChatMsg format.
 -- Only assistant message are supported.
