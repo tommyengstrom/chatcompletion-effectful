@@ -1,0 +1,121 @@
+name:                llmchat-effectful
+version:             0.1.0.0
+github:              "tommyengstrom/llmchat-effectful"
+license:             BSD-3-Clause
+author:              "Tommy Engström"
+maintainer:          "tommy@tommyengstrom.com"
+copyright:           "2025 Tommy Engström"
+
+extra-source-files:
+- README.md
+- CHANGELOG.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/tommyengstrom/llmchat-effectful#readme>
+
+language: GHC2024
+
+default-extensions:
+  - AllowAmbiguousTypes
+  - BlockArguments
+  - DataKinds
+  - DefaultSignatures
+  - DeriveAnyClass
+  - DerivingStrategies
+  - DerivingVia
+  - DuplicateRecordFields
+  - FunctionalDependencies
+  - GeneralizedNewtypeDeriving
+  - LambdaCase
+  - NoFieldSelectors
+  - OverloadedLabels
+  - OverloadedLists
+  - OverloadedStrings
+  - NoStarIsType
+  - StrictData
+  - TemplateHaskell
+  - TupleSections
+  - TypeApplications
+  - TypeFamilyDependencies
+  - TypeOperators
+  - ViewPatterns
+
+dependencies:
+  - aeson
+  - base 
+  - base64-bytestring
+  - bytestring
+  - containers
+  - deepseq
+  - effectful
+  - effectful-th
+  - generic-lens
+  - hashable
+  - http-types
+  - lens
+  - mtl
+  - openai
+  - openapi3
+  - postgresql-simple
+  - pretty-simple
+  - QuickCheck
+  - text
+  - time
+  - unliftio
+  - unordered-containers
+  - uuid
+  - vector
+  - yaml
+
+ghc-options:
+  - -Weverything 
+  - -Werror 
+  - -Wno-all-missed-specialisations 
+  - -Wno-missed-specialisations 
+  - -Wno-implicit-prelude 
+  - -Wno-missing-export-lists 
+  - -Wno-missing-import-lists 
+  - -Wno-missing-local-signatures 
+  - -Wno-missing-safe-haskell-mode 
+  - -Wno-prepositive-qualified-module 
+  - -Wno-safe 
+  - -Wno-unsafe 
+  - -Wno-missing-kind-signatures 
+  - -Wno-missing-poly-kind-signatures 
+  - -Wno-monomorphism-restriction 
+  - -Wno-missing-role-annotations
+  - -Wno-unused-packages
+  - -Wno-partial-fields
+
+library:
+  source-dirs: src
+  dependencies:
+    - openai
+
+executables:
+  llmchat-effectful-exe:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - llmchat-effectful
+
+tests:
+  llmchat-effectful-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - llmchat-effectful

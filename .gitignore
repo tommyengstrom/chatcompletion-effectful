@@ -1,0 +1,5 @@
+.hie
+TAGS
+node_modules
+
+**/.claude/settings.local.json
