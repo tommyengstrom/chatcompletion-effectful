@@ -29,8 +29,8 @@ import OpenAI.V1.Chat.Completions
     , _CreateChatCompletion
     )
 import OpenAI.V1.Models (Model (..))
-import OpenAI.V1.ToolCall qualified as OpenAiTC
 import OpenAI.V1.Tool qualified as OpenAiTool
+import OpenAI.V1.ToolCall qualified as OpenAiTC
 import Relude
 import UnliftIO
 
@@ -85,40 +85,58 @@ runAiChatOpenAi settings tools es = do
         -> Eff (AiChat ': es) a
         -> Eff es a
     runChatCompletion createChatCompletion = interpret \_ -> \case
-        RespondToConversation convId -> do
-            fullConv <- getConversation convId
-            response <-
-                adapt . tryAny . createChatCompletion $
-                    _CreateChatCompletion
-                        { messages = V.fromList $ toOpenAIMessage <$> fullConv
-                        , model = settings ^. #model . to Model
-                        , tools = Just . V.fromList $ mkTool <$> tools
-                        }
-            case response of
-                Left err ->
-                    throwError
-                        . AiChatError
-                        $ "OpenAI API error: " <> displayException err
-                Right chatCompletionObject -> do
-                    liftIO $ (settings ^. #responseLogger) chatCompletionObject
-                    now <- liftIO getCurrentTime
-
-                    let chatMsg :: Either String ChatMsg
-                        chatMsg = do
-                            openAiMsg <-
-                                maybe (Left "No message in OpenAI response") Right $
-                                    chatCompletionObject
-                                        ^? #choices
-                                            . taking 1 folded
-                                            . #message
-                            fromOpenAIMessage now openAiMsg
-                    case chatMsg of
-                        Left err -> throwError $ AiChatError err
-                        Right msg -> do
-                            appendMessages convId [msg]
+        RespondToConversation convId -> makeOpenAIRequests createChatCompletion convId
 
     adapt :: IO x -> Eff es x
     adapt m = liftIO m `catchAny` \e -> throwError . AiChatError $ displayException e
+
+
+    makeOpenAIRequests
+        :: (CreateChatCompletion -> IO ChatCompletionObject)
+        -> ConversationId
+        -> Eff es [ChatMsg]
+    makeOpenAIRequests createChatCompletion convId = do
+        fullConv <- getConversation convId
+        response <-
+            adapt . tryAny . createChatCompletion $
+                _CreateChatCompletion
+                    { messages = V.fromList $ toOpenAIMessage <$> fullConv
+                    , model = settings ^. #model . to Model
+                    , tools = Just . V.fromList $ mkTool <$> tools
+                    }
+        case response of
+            Left err ->
+                throwError
+                    . AiChatError
+                    $ "OpenAI API error: " <> displayException err
+            Right chatCompletionObject -> do
+                liftIO $ (settings ^. #responseLogger) chatCompletionObject
+                now <- liftIO getCurrentTime
+
+                let chatMsg :: Either String ChatMsg
+                    chatMsg = do
+                        openAiMsg <-
+                            maybe (Left "No message in OpenAI response") Right $
+                                chatCompletionObject
+                                    ^? #choices
+                                        . taking 1 folded
+                                        . #message
+                        fromOpenAIMessage now openAiMsg
+                case chatMsg of
+                    Right msg@AssistantMsg{} -> appendMessages convId [msg]
+                    Right msg@ToolCallMsg{toolCalls} -> do
+                        _ <- appendMessages convId [msg]
+                        forM_ toolCalls \tc -> do
+                            result <- undefined tools tc --FIXME: Run the tool
+                            case result of
+                                Left err -> throwError $ AiChatError err
+                                Right toolResponse -> do
+                                    void $ appendMessages convId [toolResponse] -- FIXME: create proper structure
+                        makeOpenAIRequests  createChatCompletion convId
+                    Right msg ->
+                        throwError . AiChatError $
+                            "Unexpected message type from OpenAI: " <> show msg
+                    Left err -> throwError $ AiChatError err
 
 toOpenAIMessage :: ChatMsg -> Message (Vector Content)
 toOpenAIMessage msg = case msg of
@@ -161,12 +179,14 @@ toOpenAIMessage msg = case msg of
             }
 
 mkTool :: ToolDef es -> OpenAiTool.Tool
-mkTool t = OpenAiTool.Tool_Function $ OpenAiTool.Function
-    { name = t ^. #name
-    , description = t ^. #description . to Just
-    , parameters = t ^. #parmeterSchema . to Just
-    , strict = Just True
-    }
+mkTool t =
+    OpenAiTool.Tool_Function $
+        OpenAiTool.Function
+            { name = t ^. #name
+            , description = t ^. #description . to Just
+            , parameters = t ^. #parmeterSchema . to Just
+            , strict = Just True
+            }
 
 -- | Convert the reponse from OpenAI to the internal ChatMsg format.
 -- Only assistant message are supported.
