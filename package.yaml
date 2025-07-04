@@ -34,6 +34,7 @@ default-extensions:
   - GeneralizedNewtypeDeriving
   - LambdaCase
   - NoFieldSelectors
+  - NoImplicitPrelude
   - OverloadedLabels
   - OverloadedLists
   - OverloadedStrings
@@ -67,6 +68,7 @@ dependencies:
   - QuickCheck
   - text
   - time
+  - relude
   - unliftio
   - unordered-containers
   - uuid
