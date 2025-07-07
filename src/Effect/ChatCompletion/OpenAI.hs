@@ -209,8 +209,8 @@ mkTool t =
         OpenAiTool.Function
             { name = t ^. #name
             , description = t ^. #description . to Just
-            , parameters = t ^. #parmeterSchema . to Just
-            , strict = Just True
+            , parameters = t ^. #parmeterSchema
+            , strict = Nothing
             }
 
 -- | Convert the reponse from OpenAI to the internal ChatMsg format.

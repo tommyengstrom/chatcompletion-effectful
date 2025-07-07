@@ -1,11 +1,13 @@
 module Effect.ChatCompletion.OpenAISpec where
 
 import Data.Text qualified as T
+import Data.Time
 import Effect.ChatCompletion
+import Data.OpenApi (ToSchema)
 import Effect.ChatCompletion.OpenAI
 import Effect.ChatCompletion.Types
+import Data.Aeson
 import Effect.ChatCompletionStorage
-import Data.Time
 import Effect.ChatCompletionStorage.InMemory
 import Effectful
 import Effectful.Error.Static
@@ -13,23 +15,23 @@ import Relude
 import Test.Hspec
 
 runEffectStack
-    :: OpenAiSettings
+    :: es
+        ~ '[ Error ChatCompletionError
+           , ChatCompletionStorage
+           , Error ChatCompletionStorageError
+           , IOE
+           ]
+    => OpenAiSettings
     -> TVar (Map ConversationId [ChatMsg])
-    -> Eff
-        '[ ChatCompletion
-         , Error ChatCompletionError
-         , ChatCompletionStorage
-         , Error ChatCompletionStorageError
-         , IOE
-         ]
-        a
+    -> [ToolDef es]
+    -> Eff (ChatCompletion ': es) a
     -> IO a
-runEffectStack settings tvar =
+runEffectStack settings tvar tools =
     runEff
         . runErrorNoCallStackWith (error . show)
         . runChatCompletionStorageInMemory tvar
         . runErrorNoCallStackWith (error . show)
-        . runChatCompletionOpenAi settings []
+        . runChatCompletionOpenAi settings tools
 
 spec :: Spec
 spec = describe "ChatCompletion OpenAI" $ do
@@ -43,7 +45,7 @@ spec = describe "ChatCompletion OpenAI" $ do
     tvar <- runIO $ newTVarIO (mempty :: Map ConversationId [ChatMsg])
 
     it "Respons to only SystemMsg" $ do
-        conv <- runEffectStack settings tvar do
+        conv <- runEffectStack settings tvar [] do
             convId <- createConversation "You are a hungry cowboy."
             respondToConversation convId
         conv `shouldSatisfy` \case
@@ -51,20 +53,68 @@ spec = describe "ChatCompletion OpenAI" $ do
             _ -> False
 
     it "Reponds to inital UserMsg" $ do
-        conv <- runEffectStack settings tvar do
-            convId <- createConversation "Act exactly as a simple calculator. No extra text, just the answer."
+        conv <- runEffectStack settings tvar [] do
+            convId <-
+                createConversation "Act exactly as a simple calculator. No extra text, just the answer."
             now <- liftIO getCurrentTime
             _ <- appendMessages convId [UserMsg "2 + 2" now]
             respondToConversation convId
         conv `shouldSatisfy` \case
-            [SystemMsg {}, UserMsg {}, AssistantMsg t _] -> t == "4"
+            [SystemMsg{}, UserMsg{}, AssistantMsg t _] -> t == "4"
             _ -> False
 
     it "Tool call is correctly triggered" $ do
-        False `shouldBe` True
+        conv <- runEffectStack settings tvar [listContacts] do
+            convId <- createConversation "You are the users assistant."
+            now <- liftIO getCurrentTime
+            _ <- appendMessages convId [UserMsg "What is my friend John's last name?" now]
+            respondToConversation convId
+        traverse_ print conv
+        conv `shouldSatisfy` any (\case
+            ToolCallMsg{toolCalls} -> any (\ToolCall{toolName} -> toolName == "list_contact") toolCalls
+            _ -> False)
 
-    it "Resolves tool call" $ do
-        False `shouldBe` True
+    it "Resolves multiple tool calls" $ do
+        conv <- runEffectStack settings tvar [listContacts, showPhoneNumber] do
+            convId <- createConversation "You are the users assistant."
+            now <- liftIO getCurrentTime
+            _ <- appendMessages convId [UserMsg "What is John's phone number?" now]
+            respondToConversation convId
+        traverse_ print conv
+        conv `shouldSatisfy` any (\case
+            ToolCallMsg{toolCalls} -> any (\ToolCall{toolName} -> toolName == "list_contact") toolCalls
+            _ -> False)
+        conv `shouldSatisfy` any (\case
+            ToolCallMsg{toolCalls} -> any (\ToolCall{toolName} -> toolName == "show_phone_number") toolCalls
+            _ -> False)
 
 
+listContacts :: ToolDef es
+listContacts = defineToolNoArgument
+    "list_contact"
+    "List all the contacts of the user."
+    (pure $ Right $ ToolResponse
+        {modelResponse = "Contacts:\n" <> T.intercalate "\n- " contacts
+        , localResponse = [UIComponent $ toJSON contacts]
+        })
+    where
+        contacts :: [Text]
+        contacts = ["John Snow", "Arya Stark", "Tyrion Lannister"]
 
+data FullName = FullName
+    { fullName :: Text
+    }
+    deriving stock (Show, Eq, Generic)
+    deriving anyclass (FromJSON, ToJSON, ToSchema)
+
+showPhoneNumber :: ToolDef es
+showPhoneNumber = defineTool
+    "show_phone_number"
+    "Show the phone number of a contact. Must use full name for lookup."
+    (\case
+        FullName "John Snow" ->  pure $ Right $ ToolResponse
+            {modelResponse = "Phone number: 123-456-7890"
+            , localResponse = [UIComponent $ toJSON ("123-456-7890" :: Text)]
+            }
+        FullName n -> pure $ Left $ "No phone number for contact: " <> T.unpack n
+        )
