@@ -1,1 +1,1 @@
-# llmchat-effectful
+# chatcompletion-effectful

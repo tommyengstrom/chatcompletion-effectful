@@ -1,4 +1,4 @@
-module Effect.AiChat.Types where
+module Effect.ChatCompletion.Types where
 
 import Data.Aeson
 import Data.OpenApi

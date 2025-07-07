@@ -1,4 +1,4 @@
-# Changelog for `llmchat-effectful`
+# Changelog for `chatcompletion-effectful`
 
 All notable changes to this project will be documented in this file.
 

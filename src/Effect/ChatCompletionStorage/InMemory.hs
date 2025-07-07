@@ -1,32 +1,32 @@
-module Effect.AiChatStorage.InMemory where
+module Effect.ChatCompletionStorage.InMemory where
 
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe
 import Data.Time
 import Data.UUID.V4 (nextRandom)
-import Effect.AiChat.Types
-import Effect.AiChatStorage
+import Effect.ChatCompletion.Types
+import Effect.ChatCompletionStorage
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effectful.Error.Static
 import UnliftIO
 import Prelude
 
-runAiChatStorageInMemory
+runChatCompletionStorageInMemory
     :: forall es a
      . ( IOE :> es
-       , Error AiChatStorageError :> es
+       , Error ChatCompletionStorageError :> es
        )
-    => Eff (AiChatStorage ': es) a
+    => Eff (ChatCompletionStorage ': es) a
     -> Eff es a
-runAiChatStorageInMemory es = do
+runChatCompletionStorageInMemory es = do
     tvar <- newTVarIO (mempty :: Map ConversationId [ChatMsg])
-    runInMemoryAiChatStorage tvar es
+    runInMemoryChatCompletionStorage tvar es
   where
-    runInMemoryAiChatStorage
-        :: TVar (Map ConversationId [ChatMsg]) -> Eff (AiChatStorage ': es) a -> Eff es a
-    runInMemoryAiChatStorage tvar = interpret \_ -> \case
+    runInMemoryChatCompletionStorage
+        :: TVar (Map ConversationId [ChatMsg]) -> Eff (ChatCompletionStorage ': es) a -> Eff es a
+    runInMemoryChatCompletionStorage tvar = interpret \_ -> \case
         CreateConversation systemPrompt -> do
             conversationId <- ConversationId <$> liftIO nextRandom
             timestamp <- liftIO getCurrentTime

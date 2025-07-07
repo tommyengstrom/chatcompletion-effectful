@@ -1,6 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 
-module Effect.AiChat.OpenAI where
+module Effect.ChatCompletion.OpenAI where
 
 import Control.Lens
 import Data.Aeson.Decoding (eitherDecodeStrictText)
@@ -12,9 +12,9 @@ import Data.Text.Lens (unpacked)
 import Data.Time
 import Data.Vector (Vector)
 import Data.Vector qualified as V
-import Effect.AiChat
-import Effect.AiChat.Types
-import Effect.AiChatStorage
+import Effect.ChatCompletion
+import Effect.ChatCompletion.Types
+import Effect.ChatCompletionStorage
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effectful.Error.Static
@@ -63,17 +63,17 @@ mapContent f = \case
     Assistant{..} -> Assistant{assistant_content = fmap f assistant_content, ..}
     Tool{..} -> Tool{content = f content, ..}
 
-runAiChatOpenAi
+runChatCompletionOpenAi
     :: forall es a
      . ( IOE :> es
-       , AiChatStorage :> es
-       , Error AiChatError :> es
+       , ChatCompletionStorage :> es
+       , Error ChatCompletionError :> es
        )
     => OpenAiSettings
     -> [ToolDef es]
-    -> Eff (AiChat ': es) a
+    -> Eff (ChatCompletion ': es) a
     -> Eff es a
-runAiChatOpenAi settings tools es = do
+runChatCompletionOpenAi settings tools es = do
     clientEnv <- liftIO . getClientEnv $ settings ^. #baseUrl
     let Methods{createChatCompletion} =
             makeMethods
@@ -84,13 +84,13 @@ runAiChatOpenAi settings tools es = do
   where
     runChatCompletion
         :: (CreateChatCompletion -> IO ChatCompletionObject)
-        -> Eff (AiChat ': es) a
+        -> Eff (ChatCompletion ': es) a
         -> Eff es a
     runChatCompletion createChatCompletion = interpret \_ -> \case
         RespondToConversation convId -> makeOpenAIRequests createChatCompletion convId
 
     adapt :: IO x -> Eff es x
-    adapt m = liftIO m `catchAny` \e -> throwError . AiChatError $ displayException e
+    adapt m = liftIO m `catchAny` \e -> throwError . ChatCompletionError $ displayException e
 
     makeOpenAIRequests
         :: (CreateChatCompletion -> IO ChatCompletionObject)
@@ -108,7 +108,7 @@ runAiChatOpenAi settings tools es = do
         case response of
             Left err ->
                 throwError
-                    . AiChatError
+                    . ChatCompletionError
                     $ "OpenAI API error: " <> displayException err
             Right chatCompletionObject -> do
                 liftIO $ (settings ^. #responseLogger) chatCompletionObject
@@ -131,11 +131,11 @@ runAiChatOpenAi settings tools es = do
                             result <- case tools ^? folded . filteredBy (#name . only (tc ^. #toolName)) of
                                 Nothing ->
                                     throwError
-                                        . AiChatError
+                                        . ChatCompletionError
                                         $ "Tool not found: " <> tc ^. #toolName . unpacked
                                 Just tool -> runTool tool (tc ^. #toolArgs)
                             case result of
-                                Left err -> throwError $ AiChatError err
+                                Left err -> throwError $ ChatCompletionError err
                                 Right toolResponse -> do
                                     void $
                                         appendMessages
@@ -148,18 +148,18 @@ runAiChatOpenAi settings tools es = do
                                             ]
                         makeOpenAIRequests createChatCompletion convId
                     Right msg ->
-                        throwError . AiChatError $
+                        throwError . ChatCompletionError $
                             "Unexpected message type from OpenAI: " <> show msg
-                    Left err -> throwError $ AiChatError err
+                    Left err -> throwError $ ChatCompletionError err
 
 runTool
-    :: Error AiChatError :> es
+    :: Error ChatCompletionError :> es
     => ToolDef es
     -> ToolArgs
     -> Eff es (Either String ToolResponse)
 runTool tool args = do
     parsedArgs <- case args ^. typed @Text . to eitherDecodeStrictText of
-        Left err -> throwError $ AiChatError $ "Failed to parse tool arguments: " <> err
+        Left err -> throwError $ ChatCompletionError $ "Failed to parse tool arguments: " <> err
         Right val -> pure val
     tool ^. #executeFunction $ parsedArgs
 
