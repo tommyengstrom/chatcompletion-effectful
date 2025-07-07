@@ -5,6 +5,7 @@ import Data.Time
 import Effect.ChatCompletion
 import Data.OpenApi (ToSchema)
 import Effect.ChatCompletion.OpenAI
+import Effect.ChatCompletion.Tool
 import Effect.ChatCompletion.Types
 import Data.Aeson
 import Effect.ChatCompletionStorage

@@ -3,7 +3,6 @@
 module Effect.ChatCompletion.OpenAI where
 
 import Control.Lens
-import Data.Aeson.Decoding (eitherDecodeStrictText)
 import Data.Aeson.Text (encodeToLazyText)
 import Data.Generics.Labels ()
 import Data.Generics.Product
@@ -13,6 +12,7 @@ import Data.Time
 import Data.Vector (Vector)
 import Data.Vector qualified as V
 import Effect.ChatCompletion
+import Effect.ChatCompletion.Tool
 import Effect.ChatCompletion.Types
 import Effect.ChatCompletionStorage
 import Effectful
@@ -151,17 +151,6 @@ runChatCompletionOpenAi settings tools es = do
                         throwError . ChatCompletionError $
                             "Unexpected message type from OpenAI: " <> show msg
                     Left err -> throwError $ ChatCompletionError err
-
-runTool
-    :: Error ChatCompletionError :> es
-    => ToolDef es
-    -> ToolArgs
-    -> Eff es (Either String ToolResponse)
-runTool tool args = do
-    parsedArgs <- case args ^. typed @Text . to eitherDecodeStrictText of
-        Left err -> throwError $ ChatCompletionError $ "Failed to parse tool arguments: " <> err
-        Right val -> pure val
-    tool ^. #executeFunction $ parsedArgs
 
 toOpenAIMessage :: ChatMsg -> Message (Vector Content)
 toOpenAIMessage msg = case msg of

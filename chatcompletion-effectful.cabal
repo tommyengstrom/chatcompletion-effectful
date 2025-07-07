@@ -27,6 +27,7 @@ library
   exposed-modules:
       Effect.ChatCompletion
       Effect.ChatCompletion.OpenAI
+      Effect.ChatCompletion.Tool
       Effect.ChatCompletion.Types
       Effect.ChatCompletionStorage
       Effect.ChatCompletionStorage.InMemory
