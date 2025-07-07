@@ -70,7 +70,6 @@ spec = describe "ChatCompletion OpenAI" $ do
             now <- liftIO getCurrentTime
             _ <- appendMessages convId [UserMsg "What is my friend John's last name?" now]
             respondToConversation convId
-        traverse_ print conv
         conv `shouldSatisfy` any (\case
             ToolCallMsg{toolCalls} -> any (\ToolCall{toolName} -> toolName == "list_contact") toolCalls
             _ -> False)
@@ -81,7 +80,6 @@ spec = describe "ChatCompletion OpenAI" $ do
             now <- liftIO getCurrentTime
             _ <- appendMessages convId [UserMsg "What is John's phone number?" now]
             respondToConversation convId
-        traverse_ print conv
         conv `shouldSatisfy` any (\case
             ToolCallMsg{toolCalls} -> any (\ToolCall{toolName} -> toolName == "list_contact") toolCalls
             _ -> False)

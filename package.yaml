@@ -99,6 +99,15 @@ library:
   source-dirs: src
   dependencies:
     - openai
+    - postgresql-simple
+  exposed-modules:
+    - Effect.ChatCompletion
+    - Effect.ChatCompletion.OpenAI
+    - Effect.ChatCompletion.Tool
+    - Effect.ChatCompletion.Types
+    - Effect.ChatCompletionStorage
+    - Effect.ChatCompletionStorage.InMemory
+    - Effect.ChatCompletionStorage.Postgres
 
 tests:
   chatcompletion-effectful-test:
@@ -114,8 +123,14 @@ tests:
     - hspec
 
   chatcompletion-effectful-integration-test:
-    main:                Spec.hs
-    source-dirs:         integration-test
+    main:                IntegrationSpec.hs
+    source-dirs:         
+      - integration-test
+      - test
+    other-modules:
+      - Effect.ChatCompletion.OpenAISpec
+      - Effect.ChatCompletion.PostgresSpec  
+      - Effect.ChatCompletionStorage.InMemorySpec
     ghc-options:
     - -threaded
     - -rtsopts
@@ -124,3 +139,5 @@ tests:
     - chatcompletion-effectful
     - QuickCheck
     - hspec
+    - lens
+    - generic-lens
