@@ -1,13 +1,13 @@
 module Effect.ChatCompletion.OpenAISpec where
 
+import Data.Aeson
+import Data.OpenApi (ToSchema)
 import Data.Text qualified as T
 import Data.Time
 import Effect.ChatCompletion
-import Data.OpenApi (ToSchema)
 import Effect.ChatCompletion.OpenAI
 import Effect.ChatCompletion.Tool
 import Effect.ChatCompletion.Types
-import Data.Aeson
 import Effect.ChatCompletionStorage
 import Effect.ChatCompletionStorage.InMemory
 import Effectful
@@ -70,9 +70,12 @@ spec = describe "ChatCompletion OpenAI" $ do
             now <- liftIO getCurrentTime
             _ <- appendMessages convId [UserMsg "What is my friend John's last name?" now]
             respondToConversation convId
-        conv `shouldSatisfy` any (\case
-            ToolCallMsg{toolCalls} -> any (\ToolCall{toolName} -> toolName == "list_contact") toolCalls
-            _ -> False)
+        conv
+            `shouldSatisfy` any
+                ( \case
+                    ToolCallMsg{toolCalls} -> any (\ToolCall{toolName} -> toolName == "list_contact") toolCalls
+                    _ -> False
+                )
 
     it "Resolves multiple tool calls" $ do
         conv <- runEffectStack settings tvar [listContacts, showPhoneNumber] do
@@ -80,28 +83,40 @@ spec = describe "ChatCompletion OpenAI" $ do
             now <- liftIO getCurrentTime
             _ <- appendMessages convId [UserMsg "What is John's phone number?" now]
             respondToConversation convId
-        conv `shouldSatisfy` any (\case
-            ToolCallMsg{toolCalls} -> any (\ToolCall{toolName} -> toolName == "list_contact") toolCalls
-            _ -> False)
-        conv `shouldSatisfy` any (\case
-            ToolCallMsg{toolCalls} -> any (\ToolCall{toolName} -> toolName == "show_phone_number") toolCalls
-            _ -> False)
-        conv `shouldSatisfy` any (\case
-            AssistantMsg{content} -> T.isInfixOf "123-456-7890" content
-            _ -> False)
-
+        conv
+            `shouldSatisfy` any
+                ( \case
+                    ToolCallMsg{toolCalls} -> any (\ToolCall{toolName} -> toolName == "list_contact") toolCalls
+                    _ -> False
+                )
+        conv
+            `shouldSatisfy` any
+                ( \case
+                    ToolCallMsg{toolCalls} -> any (\ToolCall{toolName} -> toolName == "show_phone_number") toolCalls
+                    _ -> False
+                )
+        conv
+            `shouldSatisfy` any
+                ( \case
+                    AssistantMsg{content} -> T.isInfixOf "123-456-7890" content
+                    _ -> False
+                )
 
 listContacts :: ToolDef es
-listContacts = defineToolNoArgument
-    "list_contact"
-    "List all the contacts of the user."
-    (pure $ Right $ ToolResponse
-        {modelResponse = "Contacts:\n" <> T.intercalate "\n- " contacts
-        , localResponse = [UIComponent $ toJSON contacts]
-        })
-    where
-        contacts :: [Text]
-        contacts = ["John Snow", "Arya Stark", "Tyrion Lannister"]
+listContacts =
+    defineToolNoArgument
+        "list_contact"
+        "List all the contacts of the user."
+        ( pure
+            $ Right
+            $ ToolResponse
+                { modelResponse = "Contacts:\n" <> T.intercalate "\n- " contacts
+                , localResponse = [UIComponent $ toJSON contacts]
+                }
+        )
+  where
+    contacts :: [Text]
+    contacts = ["John Snow", "Arya Stark", "Tyrion Lannister"]
 
 data FullName = FullName
     { fullName :: Text
@@ -110,13 +125,17 @@ data FullName = FullName
     deriving anyclass (FromJSON, ToJSON, ToSchema)
 
 showPhoneNumber :: ToolDef es
-showPhoneNumber = defineToolWithArgument
-    "show_phone_number"
-    "Show the phone number of a contact. Must use full name for lookup."
-    (\case
-        FullName "John Snow" ->  pure $ Right $ ToolResponse
-            { modelResponse = "Phone number: 123-456-7890"
-            , localResponse = [UIComponent $ toJSON ("123-456-7890" :: Text)]
-            }
-        FullName n -> pure $ Left $ "No phone number for contact: " <> T.unpack n
+showPhoneNumber =
+    defineToolWithArgument
+        "show_phone_number"
+        "Show the phone number of a contact. Must use full name for lookup."
+        ( \case
+            FullName "John Snow" ->
+                pure
+                    $ Right
+                    $ ToolResponse
+                        { modelResponse = "Phone number: 123-456-7890"
+                        , localResponse = [UIComponent $ toJSON ("123-456-7890" :: Text)]
+                        }
+            FullName n -> pure $ Left $ "No phone number for contact: " <> T.unpack n
         )

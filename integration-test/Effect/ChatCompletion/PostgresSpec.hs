@@ -5,8 +5,8 @@ import Data.Generics.Labels ()
 import Data.Time
 import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
 import Database.PostgreSQL.Simple
-import Effect.ChatCompletionStorage.Postgres
 import Effect.ChatCompletionStorage.InMemorySpec (specGeneralized)
+import Effect.ChatCompletionStorage.Postgres
 import Relude
 import Test.Hspec
 
@@ -19,10 +19,11 @@ spec = describe "runChatCompletionStoragePostgres" $ do
         pure $ "conversations_" <> toText unixTime
 
     let connectionString = "host=localhost port=5432 user=postgres password=postgres dbname=chatcompletion-test"
-    let settings = PostgresSettings
-            { getConnection = connectPostgreSQL connectionString
-            , tableName = tableName
-            }
+    let settings =
+            PostgresSettings
+                { getConnection = connectPostgreSQL connectionString
+                , tableName = tableName
+                }
 
     -- Setup and cleanup functions
     let setupTable = do
@@ -39,5 +40,5 @@ spec = describe "runChatCompletionStoragePostgres" $ do
     runIO do
         cleanup
         setupTable
-    afterAll_ cleanup $
-        specGeneralized (runChatCompletionStoragePostgres settings)
+    afterAll_ cleanup
+        $ specGeneralized (runChatCompletionStoragePostgres settings)

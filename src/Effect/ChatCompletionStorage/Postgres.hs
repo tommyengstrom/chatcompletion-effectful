@@ -73,14 +73,12 @@ runChatCompletionStoragePostgres settings = interpret \_ -> \case
             pure ()
         liftIO $ close conn
         pure conversationId
-
     DeleteConversation conversationId -> do
         conn <- liftIO $ settings ^. #getConnection
         liftIO $ withTransaction conn $ do
             _ <- execute conn (deleteQuery settings) (Only conversationId)
             pure ()
         liftIO $ close conn
-
     GetConversation conversationId -> do
         conn <- liftIO $ settings ^. #getConnection
         result <- liftIO $ withTransaction conn $ do
@@ -90,13 +88,12 @@ runChatCompletionStoragePostgres settings = interpret \_ -> \case
             [] -> throwError $ NoSuchConversation conversationId
             [ConversationRow _ msgs] -> pure msgs
             _ -> throwError $ NoSuchConversation conversationId
-
     AppendMessages conversationId chatMsgs -> do
         conn <- liftIO $ settings ^. #getConnection
         result <- liftIO $ withTransaction conn $ do
             existing <- query conn (selectQuery settings) (Only conversationId)
             case existing of
-                [] -> pure []  -- Return empty list if conversation doesn't exist (matches InMemory behavior)
+                [] -> pure [] -- Return empty list if conversation doesn't exist (matches InMemory behavior)
                 [ConversationRow _ msgs] -> do
                     let newMsgs = msgs <> chatMsgs
                     _ <- execute conn (updateQuery settings) (newMsgs, conversationId)
@@ -104,7 +101,6 @@ runChatCompletionStoragePostgres settings = interpret \_ -> \case
                 _ -> pure []
         liftIO $ close conn
         pure result
-
     ListConversations -> do
         conn <- liftIO $ settings ^. #getConnection
         result <- liftIO $ withTransaction conn $ do
@@ -113,28 +109,53 @@ runChatCompletionStoragePostgres settings = interpret \_ -> \case
         pure $ map (\(ConversationRow cid _) -> cid) result
 
 createTableQuery :: PostgresSettings -> Query
-createTableQuery settings = fromString $ toString $
-    "CREATE TABLE IF NOT EXISTS " <> settings ^. #tableName <> " (" <>
-    "conversation_id UUID PRIMARY KEY, " <>
-    "messages JSONB NOT NULL" <>
-    ")"
+createTableQuery settings =
+    fromString
+        $ toString
+        $ "CREATE TABLE IF NOT EXISTS "
+        <> settings
+        ^. #tableName
+            <> " ("
+            <> "conversation_id UUID PRIMARY KEY, "
+            <> "messages JSONB NOT NULL"
+            <> ")"
 
 insertQuery :: PostgresSettings -> Query
-insertQuery settings = fromString $ toString $
-    "INSERT INTO " <> settings ^. #tableName <> " (conversation_id, messages) VALUES (?, ?)"
+insertQuery settings =
+    fromString
+        $ toString
+        $ "INSERT INTO "
+        <> settings
+        ^. #tableName <> " (conversation_id, messages) VALUES (?, ?)"
 
 deleteQuery :: PostgresSettings -> Query
-deleteQuery settings = fromString $ toString $
-    "DELETE FROM " <> settings ^. #tableName <> " WHERE conversation_id = ?"
+deleteQuery settings =
+    fromString
+        $ toString
+        $ "DELETE FROM "
+        <> settings
+        ^. #tableName <> " WHERE conversation_id = ?"
 
 selectQuery :: PostgresSettings -> Query
-selectQuery settings = fromString $ toString $
-    "SELECT conversation_id, messages FROM " <> settings ^. #tableName <> " WHERE conversation_id = ?"
+selectQuery settings =
+    fromString
+        $ toString
+        $ "SELECT conversation_id, messages FROM "
+        <> settings
+        ^. #tableName <> " WHERE conversation_id = ?"
 
 updateQuery :: PostgresSettings -> Query
-updateQuery settings = fromString $ toString $
-    "UPDATE " <> settings ^. #tableName <> " SET messages = ? WHERE conversation_id = ?"
+updateQuery settings =
+    fromString
+        $ toString
+        $ "UPDATE "
+        <> settings
+        ^. #tableName <> " SET messages = ? WHERE conversation_id = ?"
 
 listQuery :: PostgresSettings -> Query
-listQuery settings = fromString $ toString $
-    "SELECT conversation_id, messages FROM " <> settings ^. #tableName
+listQuery settings =
+    fromString
+        $ toString
+        $ "SELECT conversation_id, messages FROM "
+        <> settings
+        ^. #tableName

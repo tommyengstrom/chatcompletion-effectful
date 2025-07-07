@@ -21,12 +21,12 @@ import Test.QuickCheck.Monadic
 
 instance Arbitrary ConversationId where
     arbitrary =
-        fmap ConversationId $
-            fromWords
-                <$> arbitraryBoundedIntegral
-                <*> arbitraryBoundedIntegral
-                <*> arbitraryBoundedIntegral
-                <*> arbitraryBoundedIntegral
+        fmap ConversationId
+            $ fromWords
+            <$> arbitraryBoundedIntegral
+            <*> arbitraryBoundedIntegral
+            <*> arbitraryBoundedIntegral
+            <*> arbitraryBoundedIntegral
 
 runEffStack
     :: Eff '[Error ChatCompletionStorageError, IOE] a
@@ -44,8 +44,10 @@ spec =
         specGeneralized (runChatCompletionStorageInMemory tvar)
 
 specGeneralized
-    :: (forall a. Eff (ChatCompletionStorage ': '[Error ChatCompletionStorageError, IOE] ) a
-    -> Eff '[Error ChatCompletionStorageError, IOE] a)
+    :: ( forall a
+          . Eff (ChatCompletionStorage ': '[Error ChatCompletionStorageError, IOE]) a
+         -> Eff '[Error ChatCompletionStorageError, IOE] a
+       )
     -> Spec
 specGeneralized runStorage = do
     describe "ChatCompletionStorage" $ do
@@ -74,9 +76,9 @@ specGeneralized runStorage = do
                         listBefore <- listConversations
                         convId <- createConversation systemPrompt
                         (listBefore,convId,) <$> listConversations
-                liftIO $
-                    Set.difference (Set.fromList listAfter) (Set.fromList listBefore)
-                        `shouldBe` [convId]
+                liftIO
+                    $ Set.difference (Set.fromList listAfter) (Set.fromList listBefore)
+                    `shouldBe` [convId]
         it "AppendMessage return the full conversation" $ property \(SomeText userPrompt) -> monadicIO do
             Right (beforeAppend, afterAppend) <- run $ runEffStack $ runStorage $ do
                 convIds <- listConversations
@@ -85,9 +87,10 @@ specGeneralized runStorage = do
                 now <- liftIO getCurrentTime
                 (conv,) <$> appendMessages convId [UserMsg userPrompt now]
             liftIO $ length beforeAppend + 1 `shouldBe` length afterAppend
-            liftIO $
-                afterAppend ^? reversed . folded . _Ctor @"UserMsg" . typed @Text
-                    `shouldBe` Just userPrompt
+            liftIO
+                $ afterAppend
+                ^? reversed . folded . _Ctor @"UserMsg" . typed @Text
+                `shouldBe` Just userPrompt
         it "GetConversation errors if conversation does not exist" $ do
             property $ \(convId :: ConversationId) -> monadicIO $ do
                 result <-

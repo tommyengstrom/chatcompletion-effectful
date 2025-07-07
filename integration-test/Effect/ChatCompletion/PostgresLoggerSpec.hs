@@ -1,38 +1,45 @@
 module Effect.ChatCompletion.PostgresLoggerSpec where
 
 import Control.Lens
-import Data.Aeson (Result(..), Value, fromJSON, object, toJSON)
+import Data.Aeson (Result (..), Value, fromJSON, object, toJSON)
 import Data.Aeson qualified as Aeson
 import Data.Generics.Labels ()
 import Data.Time
 import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
-import Database.PostgreSQL.Simple
-import Effect.ChatCompletion.PostgresLogger (JsonField(..), postgresResponseLogger, createTableQuery, getAllLogs)
-import Effect.ChatCompletion.Types (ConversationId(..))
 import Data.UUID.V4 (nextRandom)
+import Database.PostgreSQL.Simple
+import Effect.ChatCompletion.PostgresLogger
+    ( JsonField (..)
+    , createTableQuery
+    , getAllLogs
+    , postgresResponseLogger
+    )
+import Effect.ChatCompletion.Types (ConversationId (..))
 import OpenAI.V1.Chat.Completions (ChatCompletionObject)
 import Relude
 import Test.Hspec
 
 -- Create a simple test value that can be converted to ChatCompletionObject
 testChatCompletion :: ChatCompletionObject
-testChatCompletion = 
+testChatCompletion =
     case fromJSON testJson of
         Success obj -> obj
         Error err -> error $ toText $ "Failed to create test ChatCompletionObject: " <> err
   where
-    testJson = object 
-        [ "id" Aeson..= ("test-id" :: Text)
-        , "object" Aeson..= ("chat.completion" :: Text)
-        , "created" Aeson..= (1234567890 :: Int)
-        , "model" Aeson..= ("gpt-4" :: Text)
-        , "choices" Aeson..= ([] :: [Value])
-        , "usage" Aeson..= object
-            [ "prompt_tokens" Aeson..= (10 :: Int)
-            , "completion_tokens" Aeson..= (20 :: Int)
-            , "total_tokens" Aeson..= (30 :: Int)
+    testJson =
+        object
+            [ "id" Aeson..= ("test-id" :: Text)
+            , "object" Aeson..= ("chat.completion" :: Text)
+            , "created" Aeson..= (1234567890 :: Int)
+            , "model" Aeson..= ("gpt-4" :: Text)
+            , "choices" Aeson..= ([] :: [Value])
+            , "usage"
+                Aeson..= object
+                    [ "prompt_tokens" Aeson..= (10 :: Int)
+                    , "completion_tokens" Aeson..= (20 :: Int)
+                    , "total_tokens" Aeson..= (30 :: Int)
+                    ]
             ]
-        ]
 
 spec :: Spec
 spec = describe "PostgresLogger" $ do
@@ -62,17 +69,16 @@ spec = describe "PostgresLogger" $ do
             cleanup
             setupTable
         afterAll_ cleanup $ do
-
             it "works correctly" $ do
                 -- Create a test conversation ID
                 testConvId <- ConversationId <$> nextRandom
                 -- Log the response
                 postgresResponseLogger tableName getConnection testConvId testChatCompletion
-                
+
                 -- Verify it was logged
                 logs <- getAllLogs @ChatCompletionObject tableName getConnection
                 length logs `shouldBe` 1
-                
+
                 case viaNonEmpty head logs of
                     Nothing -> expectationFailure "Expected at least one log entry"
                     Just logEntry -> do
@@ -85,7 +91,6 @@ spec = describe "PostgresLogger" $ do
                         now <- getCurrentTime
                         let logTime = logEntry ^. #loggedAt
                         diffUTCTime now logTime `shouldSatisfy` (< 10) -- Within 10 seconds
-
     describe "can log multiple entries" $ do
         -- Create a unique table name for this test
         tableName <- runIO $ do
@@ -109,7 +114,6 @@ spec = describe "PostgresLogger" $ do
             cleanup
             setupTable
         afterAll_ cleanup $ do
-
             it "works correctly" $ do
                 -- Create test conversation IDs
                 testConvId1 <- ConversationId <$> nextRandom
@@ -117,6 +121,6 @@ spec = describe "PostgresLogger" $ do
                 -- Log twice
                 postgresResponseLogger tableName getConnection testConvId1 testChatCompletion
                 postgresResponseLogger tableName getConnection testConvId2 testChatCompletion
-                
+
                 logs <- getAllLogs @ChatCompletionObject tableName getConnection
                 length logs `shouldBe` 2

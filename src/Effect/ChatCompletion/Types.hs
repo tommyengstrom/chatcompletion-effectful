@@ -2,12 +2,12 @@ module Effect.ChatCompletion.Types where
 
 import Data.Aeson
 import Data.OpenApi
-import Data.Text (Text)
-import GHC.Generics (Generic)
 import Data.Proxy
-import Data.UUID(UUID)
-import Effectful  (Eff)
+import Data.Text (Text)
 import Data.Time
+import Data.UUID (UUID)
+import Effectful (Eff)
+import GHC.Generics (Generic)
 import Prelude
 
 type SystemPrompt = Text
@@ -68,29 +68,29 @@ data ToolDef es = ToolDef
 type ToolName = Text
 type ToolDescription = Text
 
-
 data ToolCall
     = ToolCall
-        { toolCallId :: ToolCallId
-        , toolName :: ToolName
-        , toolArgs :: ToolArgs
-        }
+    { toolCallId :: ToolCallId
+    , toolName :: ToolName
+    , toolArgs :: ToolArgs
+    }
     deriving stock (Show, Eq, Generic)
     deriving anyclass (FromJSON, ToJSON, ToSchema)
 
 data ToolResponse
     = ToolResponse
-        { modelResponse :: Text -- ^ The value returned to the LLM
-        , localResponse :: [UIComponent] -- ^ Components to render in the chat
-        }
+    { modelResponse :: Text
+    -- ^ The value returned to the LLM
+    , localResponse :: [UIComponent]
+    -- ^ Components to render in the chat
+    }
     deriving stock (Show, Eq, Generic)
     deriving anyclass (FromJSON, ToJSON, ToSchema)
 
 data ToolCallResponse
     = ToolCallResponse
-        { id :: ToolCallId
-        , response :: Text
-        }
+    { id :: ToolCallId
+    , response :: Text
+    }
     deriving stock (Show, Eq, Generic)
     deriving anyclass (FromJSON, ToJSON, ToSchema)
-

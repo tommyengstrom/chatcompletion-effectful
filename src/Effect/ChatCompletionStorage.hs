@@ -1,9 +1,9 @@
 module Effect.ChatCompletionStorage where
 
-import Effectful
-import Relude
-import Effectful.TH
 import Effect.ChatCompletion.Types
+import Effectful
+import Effectful.TH
+import Relude
 
 newtype ChatCompletionStorageError
     = NoSuchConversation ConversationId
@@ -19,4 +19,3 @@ data ChatCompletionStorage :: Effect where
 type instance DispatchOf ChatCompletionStorage = 'Dynamic
 
 makeEffect ''ChatCompletionStorage
-
