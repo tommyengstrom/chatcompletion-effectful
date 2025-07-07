@@ -27,6 +27,7 @@ library
   exposed-modules:
       Effect.ChatCompletion
       Effect.ChatCompletion.OpenAI
+      Effect.ChatCompletion.PostgresLogger
       Effect.ChatCompletion.Tool
       Effect.ChatCompletion.Types
       Effect.ChatCompletionStorage
@@ -98,6 +99,7 @@ test-suite chatcompletion-effectful-integration-test
   main-is: IntegrationSpec.hs
   other-modules:
       Effect.ChatCompletion.OpenAISpec
+      Effect.ChatCompletion.PostgresLoggerSpec
       Effect.ChatCompletion.PostgresSpec
       Effect.ChatCompletionStorage.InMemorySpec
   hs-source-dirs:

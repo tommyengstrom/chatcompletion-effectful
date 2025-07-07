@@ -43,7 +43,7 @@ data OpenAiSettings = OpenAiSettings
     { apiKey :: OpenAiApiKey
     , model :: Text
     , baseUrl :: Text
-    , responseLogger :: ChatCompletionObject -> IO ()
+    , responseLogger :: ConversationId -> ChatCompletionObject -> IO ()
     }
     deriving stock (Generic)
 
@@ -53,7 +53,7 @@ defaultOpenAiSettings apiKey =
         { apiKey = apiKey
         , model = "gpt-4o"
         , baseUrl = "https://api.openai.com"
-        , responseLogger = \_ -> pure ()
+        , responseLogger = \_ _ -> pure ()
         }
 
 mapContent :: (a -> b) -> Message a -> Message b
@@ -111,7 +111,7 @@ runChatCompletionOpenAi settings tools es = do
                     . ChatCompletionError
                     $ "OpenAI API error: " <> displayException err
             Right chatCompletionObject -> do
-                liftIO $ (settings ^. #responseLogger) chatCompletionObject
+                liftIO $ (settings ^. #responseLogger) convId chatCompletionObject
                 now <- liftIO getCurrentTime
 
                 let chatMsg :: Either String ChatMsg
