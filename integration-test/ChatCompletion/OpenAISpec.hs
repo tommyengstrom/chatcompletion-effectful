@@ -3,12 +3,8 @@ module ChatCompletion.OpenAISpec where
 import Data.Aeson
 import Data.OpenApi (ToSchema)
 import Data.Text qualified as T
-import Data.Time
-import ChatCompletion.Effect
+import ChatCompletion
 import ChatCompletion.OpenAI
-import ChatCompletion.Tool
-import ChatCompletion.Types
-import ChatCompletion.Storage.Effect
 import ChatCompletion.Storage.InMemory
 import Effectful
 import Effectful.Error.Static
@@ -57,8 +53,7 @@ spec = describe "ChatCompletion OpenAI" $ do
         conv <- runEffectStack settings tvar [] do
             convId <-
                 createConversation "Act exactly as a simple calculator. No extra text, just the answer."
-            now <- liftIO getCurrentTime
-            _ <- appendMessages convId [UserMsg "2 + 2" now]
+            _ <- appendUserMessage convId "2 + 2"
             respondToConversation convId
         conv `shouldSatisfy` \case
             [SystemMsg{}, UserMsg{}, AssistantMsg t _] -> t == "4"
@@ -67,8 +62,7 @@ spec = describe "ChatCompletion OpenAI" $ do
     it "Tool call is correctly triggered" $ do
         conv <- runEffectStack settings tvar [listContacts] do
             convId <- createConversation "You are the users assistant."
-            now <- liftIO getCurrentTime
-            _ <- appendMessages convId [UserMsg "What is my friend John's last name?" now]
+            _ <- appendUserMessage convId "What is my friend John's last name?"
             respondToConversation convId
         conv
             `shouldSatisfy` any
@@ -80,8 +74,7 @@ spec = describe "ChatCompletion OpenAI" $ do
     it "Resolves multiple tool calls" $ do
         conv <- runEffectStack settings tvar [listContacts, showPhoneNumber] do
             convId <- createConversation "You are the users assistant."
-            now <- liftIO getCurrentTime
-            _ <- appendMessages convId [UserMsg "What is John's phone number?" now]
+            _ <- appendUserMessage convId "What is John's phone number?"
             respondToConversation convId
         conv
             `shouldSatisfy` any
