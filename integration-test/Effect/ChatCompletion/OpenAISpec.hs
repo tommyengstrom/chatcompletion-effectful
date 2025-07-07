@@ -87,6 +87,9 @@ spec = describe "ChatCompletion OpenAI" $ do
         conv `shouldSatisfy` any (\case
             ToolCallMsg{toolCalls} -> any (\ToolCall{toolName} -> toolName == "show_phone_number") toolCalls
             _ -> False)
+        conv `shouldSatisfy` any (\case
+            AssistantMsg{content} -> T.isInfixOf "123-456-7890" content
+            _ -> False)
 
 
 listContacts :: ToolDef es

@@ -210,8 +210,7 @@ mkTool t =
             { name = t ^. #name
             , description = t ^. #description . to Just
             , parameters = t ^. #parmeterSchema
-            , strict = Nothing
-            }
+            , strict = True <$  t ^. #parmeterSchema             }
 
 -- | Convert the reponse from OpenAI to the internal ChatMsg format.
 -- Only assistant message are supported.

@@ -100,6 +100,7 @@ defineTool name' description' executeFunction = ToolDef
     { name = name'
     , description = description'
     , parmeterSchema = Just .toJSON $ toSchema (Proxy @a)
+        & additionalProperties ?~ AdditionalPropertiesAllowed False
     , executeFunction = \args -> do
         case fromJSON args of
             Error err -> pure $ Left $ "Failed to parse tool arguments: " <> err
