@@ -1,6 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 
-module Effect.ChatCompletion.OpenAI where
+module ChatCompletion.OpenAI where
 
 import Control.Lens
 import Data.Aeson.Text (encodeToLazyText)
@@ -11,10 +11,10 @@ import Data.Text.Lens (unpacked)
 import Data.Time
 import Data.Vector (Vector)
 import Data.Vector qualified as V
-import Effect.ChatCompletion
-import Effect.ChatCompletion.Tool
-import Effect.ChatCompletion.Types
-import Effect.ChatCompletionStorage
+import ChatCompletion.Effect
+import ChatCompletion.Tool
+import ChatCompletion.Types
+import ChatCompletion.Storage.Effect
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effectful.Error.Static

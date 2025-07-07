@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Effect.ChatCompletionStorage.InMemorySpec where
+module ChatCompletion.Storage.InMemorySpec where
 
 import Control.Lens (folded, reversed, (^..), (^?))
 import Data.Generics.Product
@@ -9,9 +9,9 @@ import Data.Set qualified as Set
 import Data.Text qualified as T
 import Data.Time
 import Data.UUID
-import Effect.ChatCompletion.Types
-import Effect.ChatCompletionStorage
-import Effect.ChatCompletionStorage.InMemory
+import ChatCompletion.Types
+import ChatCompletion.Storage.Effect
+import ChatCompletion.Storage.InMemory
 import Effectful
 import Effectful.Error.Static
 import Relude

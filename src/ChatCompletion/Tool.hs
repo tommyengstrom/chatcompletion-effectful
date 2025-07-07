@@ -1,12 +1,12 @@
-module Effect.ChatCompletion.Tool where
+module ChatCompletion.Tool where
 
 import Control.Lens
 import Data.Aeson
 import Data.Generics.Labels ()
 import Data.Generics.Product
 import Data.OpenApi
-import Effect.ChatCompletion
-import Effect.ChatCompletion.Types
+import ChatCompletion.Effect
+import ChatCompletion.Types
 import Effectful
 import Effectful.Error.Static
 import Relude

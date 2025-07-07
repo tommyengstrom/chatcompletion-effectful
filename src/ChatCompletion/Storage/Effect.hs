@@ -1,6 +1,6 @@
-module Effect.ChatCompletionStorage where
+module ChatCompletion.Storage.Effect where
 
-import Effect.ChatCompletion.Types
+import ChatCompletion.Types
 import Effectful
 import Effectful.TH
 import Relude

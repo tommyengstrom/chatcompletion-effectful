@@ -1,15 +1,15 @@
-module Effect.ChatCompletion.OpenAISpec where
+module ChatCompletion.OpenAISpec where
 
 import Data.Aeson
 import Data.OpenApi (ToSchema)
 import Data.Text qualified as T
 import Data.Time
-import Effect.ChatCompletion
-import Effect.ChatCompletion.OpenAI
-import Effect.ChatCompletion.Tool
-import Effect.ChatCompletion.Types
-import Effect.ChatCompletionStorage
-import Effect.ChatCompletionStorage.InMemory
+import ChatCompletion.Effect
+import ChatCompletion.OpenAI
+import ChatCompletion.Tool
+import ChatCompletion.Types
+import ChatCompletion.Storage.Effect
+import ChatCompletion.Storage.InMemory
 import Effectful
 import Effectful.Error.Static
 import Relude

@@ -100,15 +100,6 @@ library:
   dependencies:
     - openai
     - postgresql-simple
-  exposed-modules:
-    - Effect.ChatCompletion
-    - Effect.ChatCompletion.OpenAI
-    - Effect.ChatCompletion.PostgresLogger
-    - Effect.ChatCompletion.Tool
-    - Effect.ChatCompletion.Types
-    - Effect.ChatCompletionStorage
-    - Effect.ChatCompletionStorage.InMemory
-    - Effect.ChatCompletionStorage.Postgres
 
 tests:
   chatcompletion-effectful-test:
@@ -129,10 +120,10 @@ tests:
       - integration-test
       - test
     other-modules:
-      - Effect.ChatCompletion.OpenAISpec
-      - Effect.ChatCompletion.PostgresLoggerSpec
-      - Effect.ChatCompletion.PostgresSpec  
-      - Effect.ChatCompletionStorage.InMemorySpec
+      - ChatCompletion.OpenAISpec
+      - ChatCompletion.PostgresLoggerSpec
+      - ChatCompletion.PostgresSpec  
+      - ChatCompletion.Storage.InMemorySpec
     ghc-options:
     - -threaded
     - -rtsopts

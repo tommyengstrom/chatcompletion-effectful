@@ -1,4 +1,4 @@
-module Effect.ChatCompletion.PostgresLoggerSpec where
+module ChatCompletion.PostgresLoggerSpec where
 
 import Control.Lens
 import Data.Aeson (Result (..), Value, fromJSON, object, toJSON)
@@ -8,13 +8,13 @@ import Data.Time
 import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
 import Data.UUID.V4 (nextRandom)
 import Database.PostgreSQL.Simple
-import Effect.ChatCompletion.PostgresLogger
+import ChatCompletion.PostgresLogger
     ( JsonField (..)
     , createTableQuery
     , getAllLogs
     , postgresResponseLogger
     )
-import Effect.ChatCompletion.Types (ConversationId (..))
+import ChatCompletion.Types (ConversationId (..))
 import OpenAI.V1.Chat.Completions (ChatCompletionObject)
 import Relude
 import Test.Hspec

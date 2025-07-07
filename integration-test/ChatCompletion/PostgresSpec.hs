@@ -1,12 +1,12 @@
-module Effect.ChatCompletion.PostgresSpec where
+module ChatCompletion.PostgresSpec where
 
 import Control.Lens
 import Data.Generics.Labels ()
 import Data.Time
 import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
 import Database.PostgreSQL.Simple
-import Effect.ChatCompletionStorage.InMemorySpec (specGeneralized)
-import Effect.ChatCompletionStorage.Postgres
+import ChatCompletion.Storage.InMemorySpec (specGeneralized)
+import ChatCompletion.Storage.Postgres
 import Relude
 import Test.Hspec
 

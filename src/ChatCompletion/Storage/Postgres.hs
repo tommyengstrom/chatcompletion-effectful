@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Effect.ChatCompletionStorage.Postgres where
+module ChatCompletion.Storage.Postgres where
 
 import Control.Lens
 import Data.Aeson (Value, decode, encode, toJSON)
@@ -13,8 +13,8 @@ import Database.PostgreSQL.Simple.FromRow (FromRow (..))
 import Database.PostgreSQL.Simple.FromRow qualified as PG
 import Database.PostgreSQL.Simple.ToField
 import Database.PostgreSQL.Simple.ToRow
-import Effect.ChatCompletion.Types
-import Effect.ChatCompletionStorage
+import ChatCompletion.Types
+import ChatCompletion.Storage.Effect
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effectful.Error.Static

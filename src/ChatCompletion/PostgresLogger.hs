@@ -1,7 +1,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Effect.ChatCompletion.PostgresLogger where
+module ChatCompletion.PostgresLogger where
 
 import Data.Aeson (FromJSON, Result (..), ToJSON, Value, fromJSON, toJSON)
 import Data.Time
@@ -11,7 +11,7 @@ import Database.PostgreSQL.Simple.FromRow (FromRow (..))
 import Database.PostgreSQL.Simple.FromRow qualified as PG
 import Database.PostgreSQL.Simple.ToField
 import Database.PostgreSQL.Simple.ToRow
-import Effect.ChatCompletion.Types (ConversationId (..))
+import ChatCompletion.Types (ConversationId (..))
 import Relude
 
 type TableName = Text

@@ -1,7 +1,7 @@
-module Effect.ChatCompletion where
+module ChatCompletion.Effect where
 
 import Data.Aeson (FromJSON, ToJSON)
-import Effect.ChatCompletion.Types
+import ChatCompletion.Types
 import Effectful
 import Effectful.TH
 import Relude

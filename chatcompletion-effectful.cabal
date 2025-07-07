@@ -25,14 +25,15 @@ source-repository head
 
 library
   exposed-modules:
-      Effect.ChatCompletion
-      Effect.ChatCompletion.OpenAI
-      Effect.ChatCompletion.PostgresLogger
-      Effect.ChatCompletion.Tool
-      Effect.ChatCompletion.Types
-      Effect.ChatCompletionStorage
-      Effect.ChatCompletionStorage.InMemory
-      Effect.ChatCompletionStorage.Postgres
+      ChatCompletion
+      ChatCompletion.Effect
+      ChatCompletion.OpenAI
+      ChatCompletion.PostgresLogger
+      ChatCompletion.Storage.Effect
+      ChatCompletion.Storage.InMemory
+      ChatCompletion.Storage.Postgres
+      ChatCompletion.Tool
+      ChatCompletion.Types
   other-modules:
       Paths_chatcompletion_effectful
   autogen-modules:
@@ -98,10 +99,10 @@ test-suite chatcompletion-effectful-integration-test
   type: exitcode-stdio-1.0
   main-is: IntegrationSpec.hs
   other-modules:
-      Effect.ChatCompletion.OpenAISpec
-      Effect.ChatCompletion.PostgresLoggerSpec
-      Effect.ChatCompletion.PostgresSpec
-      Effect.ChatCompletionStorage.InMemorySpec
+      ChatCompletion.OpenAISpec
+      ChatCompletion.PostgresLoggerSpec
+      ChatCompletion.PostgresSpec
+      ChatCompletion.Storage.InMemorySpec
   hs-source-dirs:
       integration-test
       test
@@ -166,7 +167,7 @@ test-suite chatcompletion-effectful-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      Effect.ChatCompletionStorage.InMemorySpec
+      ChatCompletion.Storage.InMemorySpec
       Paths_chatcompletion_effectful
   autogen-modules:
       Paths_chatcompletion_effectful
