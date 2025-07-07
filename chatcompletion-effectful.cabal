@@ -95,6 +95,7 @@ test-suite chatcompletion-effectful-integration-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      Effect.ChatCompletion.OpenAISpec
       Paths_chatcompletion_effectful
   autogen-modules:
       Paths_chatcompletion_effectful
@@ -161,7 +162,6 @@ test-suite chatcompletion-effectful-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      Effect.ChatCompletion.OpenAISpec
       Effect.ChatCompletionStorage.InMemorySpec
       Paths_chatcompletion_effectful
   autogen-modules:

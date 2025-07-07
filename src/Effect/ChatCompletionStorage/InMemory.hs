@@ -13,17 +13,6 @@ import Effectful.Error.Static
 import UnliftIO
 import Prelude
 
---runChatCompletionStorageInMemory
---    :: forall es a
---     . ( IOE :> es
---       , Error ChatCompletionStorageError :> es
---       )
---    => Eff (ChatCompletionStorage ': es) a
---    -> Eff es a
---runChatCompletionStorageInMemory es = do
---    tvar <- newTVarIO (mempty :: Map ConversationId [ChatMsg])
---    runChatCompletionStorageInMemory' tvar es
-
 runChatCompletionStorageInMemory
     :: forall es a
      . ( IOE :> es
