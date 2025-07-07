@@ -1,6 +1,7 @@
 module Effect.AiChat.Types where
 
-import Data.Aeson (FromJSON, ToJSON, Value)
+import Data.Aeson
+import Data.OpenApi
 import Data.Text (Text)
 import GHC.Generics (Generic)
 import Data.Proxy
@@ -8,7 +9,6 @@ import Data.UUID(UUID)
 import Effectful  (Eff)
 import Data.Time
 import Prelude
-import Data.OpenApi (ToSchema(..))
 
 type SystemPrompt = Text
 
@@ -26,11 +26,6 @@ newtype ToolArgs = ToolArgs Text
 instance ToSchema ToolArgs where
     declareNamedSchema _ = declareNamedSchema $ Proxy @Text
 
-newtype ToolResponse = ToolResponse Value
-    deriving stock (Show, Eq, Generic)
-    deriving newtype (FromJSON, ToJSON)
-instance ToSchema ToolResponse where
-    declareNamedSchema _ = declareNamedSchema $ Proxy @Text
 
 newtype UIComponent = UIComponent Value
     deriving stock (Show, Eq, Generic)
@@ -58,25 +53,50 @@ data ChatMsg
     | ToolCallResponseMsg
         { toolCallId :: ToolCallId
         , toolResponse :: ToolResponse
-        , localUiComponent :: [UIComponent]
         , createdAt :: UTCTime
         }
     deriving stock (Show, Eq, Generic)
     deriving anyclass (FromJSON, ToJSON, ToSchema)
 
 data ToolDef es = ToolDef
-    { name :: Text
-    , description :: Text
+    { name :: ToolName
+    , description :: ToolDescription
     , parmeterSchema :: Value -- JSON schema for the tool parameters
-    , executeFunction :: Value -> Eff es (Either Text ToolResponse)
+    , executeFunction :: Value -> Eff es (Either String ToolResponse)
     }
     deriving stock (Generic)
+
+type ToolName = Text
+type ToolDescription = Text
+
+defineTool :: forall a es. (FromJSON a, ToSchema a)
+    => ToolName
+    -> ToolDescription
+    -> (a -> Eff es (Either String ToolResponse)) -- ^ Function to execute the tool
+    -> ToolDef es
+defineTool name' description' executeFunction = ToolDef
+    { name = name'
+    , description = description'
+    , parmeterSchema = toJSON $ toSchema (Proxy @a)
+    , executeFunction = \args -> do
+        case fromJSON args of
+            Error err -> pure $ Left $ "Failed to parse tool arguments: " <> err
+            Success val -> executeFunction val
+    }
 
 data ToolCall
     = ToolCall
         { toolCallId :: ToolCallId
-        , toolName :: Text
+        , toolName :: ToolName
         , toolArgs :: ToolArgs
+        }
+    deriving stock (Show, Eq, Generic)
+    deriving anyclass (FromJSON, ToJSON, ToSchema)
+
+data ToolResponse
+    = ToolResponse
+        { modelResponse :: Text -- ^ The value returned to the LLM
+        , localResponse :: [UIComponent] -- ^ Components to render in the chat
         }
     deriving stock (Show, Eq, Generic)
     deriving anyclass (FromJSON, ToJSON, ToSchema)
@@ -84,8 +104,7 @@ data ToolCall
 data ToolCallResponse
     = ToolCallResponse
         { id :: ToolCallId
-        , toolResponse :: ToolResponse
-        , localUiComponent :: [UIComponent]
+        , response :: Text
         }
     deriving stock (Show, Eq, Generic)
     deriving anyclass (FromJSON, ToJSON, ToSchema)

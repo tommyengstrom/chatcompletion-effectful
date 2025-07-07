@@ -100,17 +100,6 @@ library:
   dependencies:
     - openai
 
-executables:
-  llmchat-effectful-exe:
-    main:                Main.hs
-    source-dirs:         app
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    dependencies:
-    - llmchat-effectful
-
 tests:
   llmchat-effectful-test:
     main:                Spec.hs

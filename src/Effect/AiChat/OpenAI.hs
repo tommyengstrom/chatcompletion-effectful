@@ -3,10 +3,12 @@
 module Effect.AiChat.OpenAI where
 
 import Control.Lens
+import Data.Aeson.Decoding (eitherDecodeStrictText)
 import Data.Aeson.Text (encodeToLazyText)
 import Data.Generics.Labels ()
 import Data.Generics.Product
 import Data.Text.Lazy qualified as TL
+import Data.Text.Lens (unpacked)
 import Data.Time
 import Data.Vector (Vector)
 import Data.Vector qualified as V
@@ -90,7 +92,6 @@ runAiChatOpenAi settings tools es = do
     adapt :: IO x -> Eff es x
     adapt m = liftIO m `catchAny` \e -> throwError . AiChatError $ displayException e
 
-
     makeOpenAIRequests
         :: (CreateChatCompletion -> IO ChatCompletionObject)
         -> ConversationId
@@ -119,7 +120,7 @@ runAiChatOpenAi settings tools es = do
                             maybe (Left "No message in OpenAI response") Right $
                                 chatCompletionObject
                                     ^? #choices
-                                        . taking 1 folded
+                                        . taking 1 folded -- no support for multiple choices
                                         . #message
                         fromOpenAIMessage now openAiMsg
                 case chatMsg of
@@ -127,16 +128,40 @@ runAiChatOpenAi settings tools es = do
                     Right msg@ToolCallMsg{toolCalls} -> do
                         _ <- appendMessages convId [msg]
                         forM_ toolCalls \tc -> do
-                            result <- undefined tools tc --FIXME: Run the tool
+                            result <- case tools ^? folded . filteredBy (#name . only (tc ^. #toolName)) of
+                                Nothing ->
+                                    throwError
+                                        . AiChatError
+                                        $ "Tool not found: " <> tc ^. #toolName . unpacked
+                                Just tool -> runTool tool (tc ^. #toolArgs)
                             case result of
                                 Left err -> throwError $ AiChatError err
                                 Right toolResponse -> do
-                                    void $ appendMessages convId [toolResponse] -- FIXME: create proper structure
-                        makeOpenAIRequests  createChatCompletion convId
+                                    void $
+                                        appendMessages
+                                            convId
+                                            [ ToolCallResponseMsg
+                                                { toolCallId = tc ^. #toolCallId
+                                                , toolResponse = toolResponse
+                                                , createdAt = now
+                                                }
+                                            ]
+                        makeOpenAIRequests createChatCompletion convId
                     Right msg ->
                         throwError . AiChatError $
                             "Unexpected message type from OpenAI: " <> show msg
                     Left err -> throwError $ AiChatError err
+
+runTool
+    :: Error AiChatError :> es
+    => ToolDef es
+    -> ToolArgs
+    -> Eff es (Either String ToolResponse)
+runTool tool args = do
+    parsedArgs <- case args ^. typed @Text . to eitherDecodeStrictText of
+        Left err -> throwError $ AiChatError $ "Failed to parse tool arguments: " <> err
+        Right val -> pure val
+    tool ^. #executeFunction $ parsedArgs
 
 toOpenAIMessage :: ChatMsg -> Message (Vector Content)
 toOpenAIMessage msg = case msg of
@@ -165,7 +190,7 @@ toOpenAIMessage msg = case msg of
             }
   where
     toContentVector :: Text -> Vector Content
-    toContentVector text = V.singleton $ Text text
+    toContentVector = V.singleton . Text
 
     translateToolCalls :: ToolCall -> OpenAiTC.ToolCall
     translateToolCalls tc =
