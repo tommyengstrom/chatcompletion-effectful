@@ -72,7 +72,7 @@ data ChatMsg
 data ToolDef es = ToolDef
     { name :: ToolName
     , description :: ToolDescription
-    , parmeterSchema :: Maybe Value -- JSON schema for the tool parameters
+    , parameterSchema :: Maybe Value -- JSON schema for the tool parameters
     , executeFunction :: Value -> Eff es (Either String ToolResponse)
     }
     deriving stock (Generic)
@@ -88,18 +88,18 @@ defineToolNoArgument :: forall es.
 defineToolNoArgument name' description' executeFunction = ToolDef
     { name = name'
     , description = description'
-    , parmeterSchema = Nothing
+    , parameterSchema = Nothing
     , executeFunction = \_ -> executeFunction
     }
-defineTool :: forall a es. (FromJSON a, ToSchema a)
+defineToolWithArgument :: forall a es. (FromJSON a, ToSchema a)
     => ToolName
     -> ToolDescription
     -> (a -> Eff es (Either String ToolResponse)) -- ^ Function to execute the tool
     -> ToolDef es
-defineTool name' description' executeFunction = ToolDef
+defineToolWithArgument name' description' executeFunction = ToolDef
     { name = name'
     , description = description'
-    , parmeterSchema = Just .toJSON $ toSchema (Proxy @a)
+    , parameterSchema = Just .toJSON $ toSchema (Proxy @a)
         & additionalProperties ?~ AdditionalPropertiesAllowed False
     , executeFunction = \args -> do
         case fromJSON args of

@@ -111,12 +111,12 @@ data FullName = FullName
     deriving anyclass (FromJSON, ToJSON, ToSchema)
 
 showPhoneNumber :: ToolDef es
-showPhoneNumber = defineTool
+showPhoneNumber = defineToolWithArgument
     "show_phone_number"
     "Show the phone number of a contact. Must use full name for lookup."
     (\case
         FullName "John Snow" ->  pure $ Right $ ToolResponse
-            {modelResponse = "Phone number: 123-456-7890"
+            { modelResponse = "Phone number: 123-456-7890"
             , localResponse = [UIComponent $ toJSON ("123-456-7890" :: Text)]
             }
         FullName n -> pure $ Left $ "No phone number for contact: " <> T.unpack n
