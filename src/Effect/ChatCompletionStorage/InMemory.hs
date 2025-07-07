@@ -13,35 +13,42 @@ import Effectful.Error.Static
 import UnliftIO
 import Prelude
 
+--runChatCompletionStorageInMemory
+--    :: forall es a
+--     . ( IOE :> es
+--       , Error ChatCompletionStorageError :> es
+--       )
+--    => Eff (ChatCompletionStorage ': es) a
+--    -> Eff es a
+--runChatCompletionStorageInMemory es = do
+--    tvar <- newTVarIO (mempty :: Map ConversationId [ChatMsg])
+--    runChatCompletionStorageInMemory' tvar es
+
 runChatCompletionStorageInMemory
     :: forall es a
      . ( IOE :> es
        , Error ChatCompletionStorageError :> es
        )
-    => Eff (ChatCompletionStorage ': es) a
-    -> Eff es a
-runChatCompletionStorageInMemory es = do
-    tvar <- newTVarIO (mempty :: Map ConversationId [ChatMsg])
-    runInMemoryChatCompletionStorage tvar es
-  where
-    runInMemoryChatCompletionStorage
-        :: TVar (Map ConversationId [ChatMsg]) -> Eff (ChatCompletionStorage ': es) a -> Eff es a
-    runInMemoryChatCompletionStorage tvar = interpret \_ -> \case
-        CreateConversation systemPrompt -> do
-            conversationId <- ConversationId <$> liftIO nextRandom
-            timestamp <- liftIO getCurrentTime
-            atomically $
-                modifyTVar' tvar (Map.insert conversationId [SystemMsg systemPrompt timestamp])
-            pure conversationId
-        DeleteConversation conversationId -> do
-            atomically $ modifyTVar' tvar (Map.delete conversationId)
-        GetConversation conversationId -> do
-            conversations <- readTVarIO tvar
-            let conv = Map.lookup conversationId conversations
-            case conv of
-                Nothing -> throwError $ NoSuchConversation conversationId
-                Just c -> pure c
-        AppendMessages conversationId chatMsgs -> do
-            atomically $ do
-                modifyTVar' tvar $ Map.adjust (<> chatMsgs) conversationId
-                fromMaybe [] . Map.lookup conversationId <$> readTVar tvar
+    => TVar (Map ConversationId [ChatMsg]) -> Eff (ChatCompletionStorage ': es) a -> Eff es a
+runChatCompletionStorageInMemory tvar = interpret \_ -> \case
+    CreateConversation systemPrompt -> do
+        conversationId <- ConversationId <$> liftIO nextRandom
+        timestamp <- liftIO getCurrentTime
+        atomically $
+            modifyTVar' tvar (Map.insert conversationId [SystemMsg systemPrompt timestamp])
+        pure conversationId
+    DeleteConversation conversationId -> do
+        atomically $ modifyTVar' tvar (Map.delete conversationId)
+    GetConversation conversationId -> do
+        conversations <- readTVarIO tvar
+        let conv = Map.lookup conversationId conversations
+        case conv of
+            Nothing -> throwError $ NoSuchConversation conversationId
+            Just c -> pure c
+    AppendMessages conversationId chatMsgs -> do
+        atomically $ do
+            modifyTVar' tvar $ Map.adjust (<> chatMsgs) conversationId
+            fromMaybe [] . Map.lookup conversationId <$> readTVar tvar
+    ListConversations -> do
+        conversations <- readTVarIO tvar
+        pure $ Map.keys conversations
