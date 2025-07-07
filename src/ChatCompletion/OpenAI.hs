@@ -127,9 +127,11 @@ runChatCompletionOpenAi settings tools es = do
                                     . #message
                         fromOpenAIMessage now openAiMsg
                 case chatMsg of
-                    Right msg@AssistantMsg{} -> appendMessages convId [msg]
+                    Right msg@AssistantMsg{} -> do
+                        appendMessages convId [msg]
+                        getConversation convId
                     Right msg@ToolCallMsg{toolCalls} -> do
-                        _ <- appendMessages convId [msg]
+                        appendMessages convId [msg]
                         forM_ toolCalls \tc -> do
                             result <- case tools ^? folded . filteredBy (#name . only (tc ^. #toolName)) of
                                 Nothing ->

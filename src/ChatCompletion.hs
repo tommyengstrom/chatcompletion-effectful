@@ -13,7 +13,7 @@ appendUserMessage
     => ChatCompletionStorage :> es
     => ConversationId
     -> Text
-    -> Eff es [ChatMsg]
+    -> Eff es ()
 appendUserMessage conversationId content = do
     currentTime <- liftIO getCurrentTime
     let userMsg = UserMsg{content, createdAt = currentTime}

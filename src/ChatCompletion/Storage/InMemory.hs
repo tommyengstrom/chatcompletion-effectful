@@ -38,7 +38,6 @@ runChatCompletionStorageInMemory tvar = interpret \_ -> \case
     AppendMessages conversationId chatMsgs -> do
         atomically $ do
             modifyTVar' tvar $ Map.adjust (<> chatMsgs) conversationId
-            fromMaybe [] . Map.lookup conversationId <$> readTVar tvar
     ListConversations -> do
         conversations <- readTVarIO tvar
         pure $ Map.keys conversations

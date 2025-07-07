@@ -53,7 +53,7 @@ spec = describe "ChatCompletion OpenAI" $ do
         conv <- runEffectStack settings tvar [] do
             convId <-
                 createConversation "Act exactly as a simple calculator. No extra text, just the answer."
-            _ <- appendUserMessage convId "2 + 2"
+            appendUserMessage convId "2 + 2"
             respondToConversation convId
         conv `shouldSatisfy` \case
             [SystemMsg{}, UserMsg{}, AssistantMsg t _] -> t == "4"
@@ -62,7 +62,7 @@ spec = describe "ChatCompletion OpenAI" $ do
     it "Tool call is correctly triggered" $ do
         conv <- runEffectStack settings tvar [listContacts] do
             convId <- createConversation "You are the users assistant."
-            _ <- appendUserMessage convId "What is my friend John's last name?"
+            appendUserMessage convId "What is my friend John's last name?"
             respondToConversation convId
         conv
             `shouldSatisfy` any
@@ -74,7 +74,7 @@ spec = describe "ChatCompletion OpenAI" $ do
     it "Resolves multiple tool calls" $ do
         conv <- runEffectStack settings tvar [listContacts, showPhoneNumber] do
             convId <- createConversation "You are the users assistant."
-            _ <- appendUserMessage convId "What is John's phone number?"
+            appendUserMessage convId "What is John's phone number?"
             respondToConversation convId
         conv
             `shouldSatisfy` any

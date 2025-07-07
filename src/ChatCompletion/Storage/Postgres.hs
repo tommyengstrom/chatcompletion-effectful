@@ -88,24 +88,22 @@ runChatCompletionStoragePostgres settings = interpret \_ -> \case
             [] -> throwError $ NoSuchConversation conversationId
             [ConversationRow _ msgs] -> pure msgs
             _ -> throwError $ NoSuchConversation conversationId
-    AppendMessages conversationId chatMsgs -> do
-        conn <- liftIO $ settings ^. #getConnection
-        result <- liftIO $ withTransaction conn $ do
+    AppendMessages conversationId chatMsgs -> liftIO do
+        conn <- settings ^. #getConnection
+        withTransaction conn $ do
             existing <- query conn (selectQuery settings) (Only conversationId)
             case existing of
-                [] -> pure [] -- Return empty list if conversation doesn't exist (matches InMemory behavior)
+                [] -> pure ()
                 [ConversationRow _ msgs] -> do
                     let newMsgs = msgs <> chatMsgs
-                    _ <- execute conn (updateQuery settings) (newMsgs, conversationId)
-                    pure newMsgs
-                _ -> pure []
-        liftIO $ close conn
-        pure result
-    ListConversations -> do
-        conn <- liftIO $ settings ^. #getConnection
-        result <- liftIO $ withTransaction conn $ do
+                    void $ execute conn (updateQuery settings) (newMsgs, conversationId)
+                _ -> pure ()
+        close conn
+    ListConversations -> liftIO do
+        conn <- settings ^. #getConnection
+        result <- withTransaction conn $ do
             query_ conn (listQuery settings)
-        liftIO $ close conn
+        close conn
         pure $ map (\(ConversationRow cid _) -> cid) result
 
 createTableQuery :: PostgresSettings -> Query
