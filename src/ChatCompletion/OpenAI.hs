@@ -2,6 +2,10 @@
 
 module ChatCompletion.OpenAI where
 
+import ChatCompletion.Effect
+import ChatCompletion.Storage.Effect
+import ChatCompletion.Tool
+import ChatCompletion.Types
 import Control.Lens
 import Data.Aeson.Text (encodeToLazyText)
 import Data.Generics.Labels ()
@@ -11,10 +15,6 @@ import Data.Text.Lens (unpacked)
 import Data.Time
 import Data.Vector (Vector)
 import Data.Vector qualified as V
-import ChatCompletion.Effect
-import ChatCompletion.Tool
-import ChatCompletion.Types
-import ChatCompletion.Storage.Effect
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effectful.Error.Static
@@ -112,7 +112,7 @@ runChatCompletionOpenAi settings tools es = do
                 throwError
                     . ChatCompletionError
                     $ "OpenAI API error: "
-                    <> displayException err
+                        <> displayException err
             Right chatCompletionObject -> do
                 liftIO $ (settings ^. #responseLogger) convId chatCompletionObject
                 now <- liftIO getCurrentTime
@@ -120,45 +120,46 @@ runChatCompletionOpenAi settings tools es = do
                 let chatMsg :: Either String ChatMsg
                     chatMsg = do
                         openAiMsg <-
-                            maybe (Left "No message in OpenAI response") Right
-                                $ chatCompletionObject
-                                ^? #choices
-                                    . taking 1 folded -- no support for multiple choices
-                                    . #message
+                            maybe (Left "No message in OpenAI response") Right $
+                                chatCompletionObject
+                                    ^? #choices
+                                        . taking 1 folded -- no support for multiple choices
+                                        . #message
                         fromOpenAIMessage now openAiMsg
                 case chatMsg of
                     Right msg@AssistantMsg{} -> do
                         appendMessages convId [msg]
-                        getConversation convId
+                        pure [msg]
                     Right msg@ToolCallMsg{toolCalls} -> do
                         appendMessages convId [msg]
-                        forM_ toolCalls \tc -> do
+                        tcResponses <- forM toolCalls \tc -> do
                             result <- case tools ^? folded . filteredBy (#name . only (tc ^. #toolName)) of
                                 Nothing ->
                                     throwError
                                         . ChatCompletionError
                                         $ "Tool not found: "
-                                        <> tc
-                                        ^. #toolName . unpacked
+                                            <> tc
+                                                ^. #toolName . unpacked
                                 Just tool -> runTool tool (tc ^. #toolArgs)
                             case result of
                                 Left err -> throwError $ ChatCompletionError err
                                 Right toolResponse -> do
-                                    void
-                                        $ appendMessages
-                                            convId
-                                            [ ToolCallResponseMsg
+                                    let tcResponse =
+                                            ToolCallResponseMsg
                                                 { toolCallId = tc ^. #toolCallId
                                                 , toolResponse = toolResponse
                                                 , createdAt = now
                                                 }
-                                            ]
-                        makeOpenAIRequests createChatCompletion convId
+
+                                    appendMessages convId [tcResponse]
+                                    pure tcResponse
+                        mappend (msg : tcResponses)
+                            <$> makeOpenAIRequests createChatCompletion convId
                     Right msg ->
                         throwError
                             . ChatCompletionError
                             $ "Unexpected message type from OpenAI: "
-                            <> show msg
+                                <> show msg
                     Left err -> throwError $ ChatCompletionError err
 
 toOpenAIMessage :: ChatMsg -> Message (Vector Content)
@@ -203,8 +204,8 @@ toOpenAIMessage msg = case msg of
 
 mkTool :: ToolDef es -> OpenAiTool.Tool
 mkTool t =
-    OpenAiTool.Tool_Function
-        $ OpenAiTool.Function
+    OpenAiTool.Tool_Function $
+        OpenAiTool.Function
             { name = t ^. #name
             , description = t ^. #description . to Just
             , parameters = t ^. #parameterSchema
@@ -220,8 +221,8 @@ fromOpenAIMessage now = \case
             ToolCallMsg
                 { toolCalls = do
                     tc <- V.toList tcs
-                    pure
-                        $ ToolCall
+                    pure $
+                        ToolCall
                             { toolCallId = tc ^. #id . to ToolCallId
                             , toolName = tc ^. #function . #name
                             , toolArgs = tc ^. #function . #arguments . to ToolArgs

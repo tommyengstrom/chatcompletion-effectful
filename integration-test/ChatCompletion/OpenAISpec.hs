@@ -41,30 +41,34 @@ spec = describe "ChatCompletion OpenAI" $ do
         pure $ defaultOpenAiSettings apiKey
     tvar <- runIO $ newTVarIO (mempty :: Map ConversationId [ChatMsg])
 
-    it "Respons to only SystemMsg" $ do
-        conv <- runEffectStack settings tvar [] do
+    it "Responds to only SystemMsg" $ do
+        (response, conv) <- runEffectStack settings tvar [] do
             convId <- createConversation "You are a hungry cowboy."
-            respondToConversation convId
-        conv `shouldSatisfy` \case
-            [SystemMsg "You are a hungry cowboy." _, AssistantMsg t _] -> T.length t > 0
+            (,) <$> respondToConversation convId
+                <*> getConversation convId
+        response `shouldSatisfy` \case
+            [AssistantMsg t _] -> T.length t > 0
             _ -> False
-
+        traverse_ print conv
+        conv `shouldSatisfy` (== 2) . length
     it "Reponds to inital UserMsg" $ do
-        conv <- runEffectStack settings tvar [] do
+        (response, conv) <- runEffectStack settings tvar [] do
             convId <-
                 createConversation "Act exactly as a simple calculator. No extra text, just the answer."
             appendUserMessage convId "2 + 2"
-            respondToConversation convId
-        conv `shouldSatisfy` \case
-            [SystemMsg{}, UserMsg{}, AssistantMsg t _] -> t == "4"
+            (,) <$> respondToConversation convId
+                <*> getConversation convId
+        response `shouldSatisfy` \case
+            [AssistantMsg t _] -> t == "4"
             _ -> False
+        conv `shouldSatisfy` (== 3) . length
 
     it "Tool call is correctly triggered" $ do
-        conv <- runEffectStack settings tvar [listContacts] do
+        response <- runEffectStack settings tvar [listContacts] do
             convId <- createConversation "You are the users assistant."
             appendUserMessage convId "What is my friend John's last name?"
             respondToConversation convId
-        conv
+        response
             `shouldSatisfy` any
                 ( \case
                     ToolCallMsg{toolCalls} -> any (\ToolCall{toolName} -> toolName == "list_contact") toolCalls
@@ -72,23 +76,23 @@ spec = describe "ChatCompletion OpenAI" $ do
                 )
 
     it "Resolves multiple tool calls" $ do
-        conv <- runEffectStack settings tvar [listContacts, showPhoneNumber] do
+        response <- runEffectStack settings tvar [listContacts, showPhoneNumber] do
             convId <- createConversation "You are the users assistant."
             appendUserMessage convId "What is John's phone number?"
             respondToConversation convId
-        conv
+        response
             `shouldSatisfy` any
                 ( \case
                     ToolCallMsg{toolCalls} -> any (\ToolCall{toolName} -> toolName == "list_contact") toolCalls
                     _ -> False
                 )
-        conv
+        response
             `shouldSatisfy` any
                 ( \case
                     ToolCallMsg{toolCalls} -> any (\ToolCall{toolName} -> toolName == "show_phone_number") toolCalls
                     _ -> False
                 )
-        conv
+        response
             `shouldSatisfy` any
                 ( \case
                     AssistantMsg{content} -> T.isInfixOf "123-456-7890" content
