@@ -70,10 +70,9 @@ runChatCompletionOpenAi
        , Error ChatCompletionError :> es
        )
     => OpenAiSettings
-    -> [ToolDef es]
     -> Eff (ChatCompletion ': es) a
     -> Eff es a
-runChatCompletionOpenAi settings tools es = do
+runChatCompletionOpenAi settings es = do
     clientEnv <- liftIO . getClientEnv $ settings ^. #baseUrl
     let Methods{createChatCompletion} =
             makeMethods
@@ -87,16 +86,18 @@ runChatCompletionOpenAi settings tools es = do
         -> Eff (ChatCompletion ': es) a
         -> Eff es a
     runChatCompletion createChatCompletion = interpret \_ -> \case
-        RespondToConversation convId -> makeOpenAIRequests createChatCompletion convId
+        RespondToConversation tools convId ->
+            makeOpenAIRequests createChatCompletion tools convId
 
     adapt :: IO x -> Eff es x
     adapt m = liftIO m `catchAny` \e -> throwError . ChatCompletionError $ displayException e
 
     makeOpenAIRequests
         :: (CreateChatCompletion -> IO ChatCompletionObject)
+        -> [ToolDef es]
         -> ConversationId
         -> Eff es [ChatMsg]
-    makeOpenAIRequests createChatCompletion convId = do
+    makeOpenAIRequests createChatCompletion tools convId = do
         fullConv <- getConversation convId
         response <-
             adapt
@@ -112,7 +113,7 @@ runChatCompletionOpenAi settings tools es = do
                 throwError
                     . ChatCompletionError
                     $ "OpenAI API error: "
-                        <> displayException err
+                    <> displayException err
             Right chatCompletionObject -> do
                 liftIO $ (settings ^. #responseLogger) convId chatCompletionObject
                 now <- liftIO getCurrentTime
@@ -120,11 +121,11 @@ runChatCompletionOpenAi settings tools es = do
                 let chatMsg :: Either String ChatMsg
                     chatMsg = do
                         openAiMsg <-
-                            maybe (Left "No message in OpenAI response") Right $
-                                chatCompletionObject
-                                    ^? #choices
-                                        . taking 1 folded -- no support for multiple choices
-                                        . #message
+                            maybe (Left "No message in OpenAI response") Right
+                                $ chatCompletionObject
+                                ^? #choices
+                                    . taking 1 folded -- no support for multiple choices
+                                    . #message
                         fromOpenAIMessage now openAiMsg
                 case chatMsg of
                     Right msg@AssistantMsg{} -> do
@@ -138,8 +139,8 @@ runChatCompletionOpenAi settings tools es = do
                                     throwError
                                         . ChatCompletionError
                                         $ "Tool not found: "
-                                            <> tc
-                                                ^. #toolName . unpacked
+                                        <> tc
+                                        ^. #toolName . unpacked
                                 Just tool -> runTool tool (tc ^. #toolArgs)
                             case result of
                                 Left err -> throwError $ ChatCompletionError err
@@ -154,12 +155,12 @@ runChatCompletionOpenAi settings tools es = do
                                     appendMessages convId [tcResponse]
                                     pure tcResponse
                         mappend (msg : tcResponses)
-                            <$> makeOpenAIRequests createChatCompletion convId
+                            <$> makeOpenAIRequests createChatCompletion tools convId
                     Right msg ->
                         throwError
                             . ChatCompletionError
                             $ "Unexpected message type from OpenAI: "
-                                <> show msg
+                            <> show msg
                     Left err -> throwError $ ChatCompletionError err
 
 toOpenAIMessage :: ChatMsg -> Message (Vector Content)
@@ -204,8 +205,8 @@ toOpenAIMessage msg = case msg of
 
 mkTool :: ToolDef es -> OpenAiTool.Tool
 mkTool t =
-    OpenAiTool.Tool_Function $
-        OpenAiTool.Function
+    OpenAiTool.Tool_Function
+        $ OpenAiTool.Function
             { name = t ^. #name
             , description = t ^. #description . to Just
             , parameters = t ^. #parameterSchema
@@ -221,8 +222,8 @@ fromOpenAIMessage now = \case
             ToolCallMsg
                 { toolCalls = do
                     tc <- V.toList tcs
-                    pure $
-                        ToolCall
+                    pure
+                        $ ToolCall
                             { toolCallId = tc ^. #id . to ToolCallId
                             , toolName = tc ^. #function . #name
                             , toolArgs = tc ^. #function . #arguments . to ToolArgs

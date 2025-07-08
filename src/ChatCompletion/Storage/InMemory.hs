@@ -1,12 +1,12 @@
 module ChatCompletion.Storage.InMemory where
 
+import ChatCompletion.Storage.Effect
+import ChatCompletion.Types
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe
 import Data.Time
 import Data.UUID.V4 (nextRandom)
-import ChatCompletion.Types
-import ChatCompletion.Storage.Effect
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effectful.Error.Static
@@ -19,7 +19,8 @@ runChatCompletionStorageInMemory
        , Error ChatCompletionStorageError :> es
        )
     => TVar (Map ConversationId [ChatMsg])
-    -> Eff (ChatCompletionStorage ': es) a -> Eff es a
+    -> Eff (ChatCompletionStorage ': es) a
+    -> Eff es a
 runChatCompletionStorageInMemory tvar = interpret \_ -> \case
     CreateConversation systemPrompt -> do
         conversationId <- ConversationId <$> liftIO nextRandom

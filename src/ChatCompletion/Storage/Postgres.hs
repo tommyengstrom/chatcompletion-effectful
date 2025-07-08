@@ -2,6 +2,8 @@
 
 module ChatCompletion.Storage.Postgres where
 
+import ChatCompletion.Storage.Effect
+import ChatCompletion.Types
 import Control.Lens
 import Data.Aeson (Value, decode, encode, toJSON)
 import Data.Generics.Labels ()
@@ -13,8 +15,6 @@ import Database.PostgreSQL.Simple.FromRow (FromRow (..))
 import Database.PostgreSQL.Simple.FromRow qualified as PG
 import Database.PostgreSQL.Simple.ToField
 import Database.PostgreSQL.Simple.ToRow
-import ChatCompletion.Types
-import ChatCompletion.Storage.Effect
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effectful.Error.Static

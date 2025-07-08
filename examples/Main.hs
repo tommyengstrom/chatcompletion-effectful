@@ -18,10 +18,9 @@ runChatApp
            , Error ChatCompletionStorageError
            , IOE
            ]
-    => [ToolDef es]
-    -> Eff (ChatCompletion ':  es) a
+    => Eff (ChatCompletion ': es) a
     -> IO a
-runChatApp tools action = do
+runChatApp action = do
     -- Get OpenAI API key from environment
     apiKey <-
         maybe
@@ -32,16 +31,15 @@ runChatApp tools action = do
     let settings = defaultOpenAiSettings apiKey
     tvar <- newTVarIO mempty
 
-    runEff $
-        runErrorNoCallStackWith (error . show) $
-            runChatCompletionStorageInMemory tvar $
-                runErrorNoCallStackWith (error . show) $
-                    runChatCompletionOpenAi settings tools $
-                        action
+    runEff
+        $ runErrorNoCallStackWith (error . show)
+        $ runChatCompletionStorageInMemory tvar
+        $ runErrorNoCallStackWith (error . show)
+        $ runChatCompletionOpenAi settings action
 
 -- | Example 1: Simple conversation
 simpleConversation :: IO ()
-simpleConversation = runChatApp [] $ do
+simpleConversation = runChatApp $ do
     putStrLn "=== Simple Conversation ==="
 
     -- Create a conversation with a system prompt
@@ -51,7 +49,7 @@ simpleConversation = runChatApp [] $ do
     appendUserMessage convId "What's the weather like today?"
 
     -- Get response
-    response <- respondToConversation convId
+    response <- respondToConversation [] convId
 
     case response of
         [AssistantMsg content _] -> do
@@ -61,7 +59,7 @@ simpleConversation = runChatApp [] $ do
 
 -- | Example 2: Tool calling with contacts
 toolCallingExample :: IO ()
-toolCallingExample = runChatApp [listContacts, showPhoneNumber] $ do
+toolCallingExample = runChatApp $ do
     putStrLn "\n=== Tool Calling Example ==="
 
     -- Create a conversation with tools
@@ -70,7 +68,7 @@ toolCallingExample = runChatApp [listContacts, showPhoneNumber] $ do
 
     -- Ask for contact information
     appendUserMessage convId "What is John's phone number?"
-    response <- respondToConversation convId
+    response <- respondToConversation [listContacts, showPhoneNumber] convId
 
     putStrLn $ "User: What is John's phone number?"
     putStrLn $ "Response has " <> show (length response) <> " messages:"
@@ -89,12 +87,12 @@ listContacts =
     defineToolNoArgument
         "list_contact"
         "List all the contacts of the user."
-        ( pure $
-            Right $
-                ToolResponse
-                    { modelResponse = "Contacts:\n" <> T.intercalate "\n- " contacts
-                    , localResponse = [UIComponent $ toJSON contacts]
-                    }
+        ( pure
+            $ Right
+            $ ToolResponse
+                { modelResponse = "Contacts:\n" <> T.intercalate "\n- " contacts
+                , localResponse = [UIComponent $ toJSON contacts]
+                }
         )
   where
     contacts = ["John Snow", "Arya Stark", "Tyrion Lannister"]
@@ -114,12 +112,12 @@ showPhoneNumber =
         "Show the phone number of a contact. Must use full name for lookup."
         ( \case
             FullName "John Snow" ->
-                pure $
-                    Right $
-                        ToolResponse
-                            { modelResponse = "Phone number: 123-456-7890"
-                            , localResponse = [UIComponent $ toJSON ("123-456-7890" :: Text)]
-                            }
+                pure
+                    $ Right
+                    $ ToolResponse
+                        { modelResponse = "Phone number: 123-456-7890"
+                        , localResponse = [UIComponent $ toJSON ("123-456-7890" :: Text)]
+                        }
             FullName n -> pure $ Left $ "No phone number for contact: " <> T.unpack n
         )
 

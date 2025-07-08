@@ -1,17 +1,17 @@
 module ChatCompletion.OpenAISpec where
 
+import ChatCompletion
+import ChatCompletion.OpenAI
+import ChatCompletion.Storage.InMemory
+import Control.Lens (folded, (^..))
 import Data.Aeson
 import Data.Generics.Sum
 import Data.OpenApi (ToSchema)
 import Data.Text qualified as T
-import ChatCompletion
-import ChatCompletion.OpenAI
-import ChatCompletion.Storage.InMemory
 import Effectful
 import Effectful.Error.Static
 import Relude
 import Test.Hspec
-import Control.Lens ((^..), folded)
 
 runEffectStack
     :: es
@@ -22,15 +22,14 @@ runEffectStack
            ]
     => OpenAiSettings
     -> TVar (Map ConversationId [ChatMsg])
-    -> [ToolDef es]
     -> Eff (ChatCompletion ': es) a
     -> IO a
-runEffectStack settings tvar tools =
+runEffectStack settings tvar =
     runEff
         . runErrorNoCallStackWith (error . show)
         . runChatCompletionStorageInMemory tvar
         . runErrorNoCallStackWith (error . show)
-        . runChatCompletionOpenAi settings tools
+        . runChatCompletionOpenAi settings
 
 spec :: Spec
 spec = describe "ChatCompletion OpenAI" $ do
@@ -44,20 +43,22 @@ spec = describe "ChatCompletion OpenAI" $ do
     tvar <- runIO $ newTVarIO (mempty :: Map ConversationId [ChatMsg])
 
     it "Responds to only SystemMsg" $ do
-        (response, conv) <- runEffectStack settings tvar [] do
+        (response, conv) <- runEffectStack settings tvar do
             convId <- createConversation "You are a hungry cowboy."
-            (,) <$> respondToConversation convId
+            (,)
+                <$> respondToConversation [] convId
                 <*> getConversation convId
         response `shouldSatisfy` \case
             [AssistantMsg t _] -> T.length t > 0
             _ -> False
         conv `shouldSatisfy` (== 2) . length
     it "Reponds to inital UserMsg" $ do
-        (response, conv) <- runEffectStack settings tvar [] do
+        (response, conv) <- runEffectStack settings tvar do
             convId <-
                 createConversation "Act exactly as a simple calculator. No extra text, just the answer."
             appendUserMessage convId "2 + 2"
-            (,) <$> respondToConversation convId
+            (,)
+                <$> respondToConversation [] convId
                 <*> getConversation convId
         response `shouldSatisfy` \case
             [AssistantMsg t _] -> t == "4"
@@ -65,10 +66,10 @@ spec = describe "ChatCompletion OpenAI" $ do
         conv `shouldSatisfy` (== 3) . length
 
     it "Tool call is correctly triggered" $ do
-        response <- runEffectStack settings tvar [listContacts] do
+        response <- runEffectStack settings tvar do
             convId <- createConversation "You are the users assistant."
             appendUserMessage convId "What is my friend John's last name?"
-            respondToConversation convId
+            respondToConversation [listContacts] convId
         response
             `shouldSatisfy` any
                 ( \case
@@ -77,10 +78,10 @@ spec = describe "ChatCompletion OpenAI" $ do
                 )
 
     it "Resolves multiple tool calls" $ do
-        response <- runEffectStack settings tvar [listContacts, showPhoneNumber] do
+        response <- runEffectStack settings tvar do
             convId <- createConversation "You are the users assistant."
             appendUserMessage convId "What is John's phone number?"
-            respondToConversation convId
+            respondToConversation [listContacts, showPhoneNumber] convId
         response
             `shouldSatisfy` any
                 ( \case

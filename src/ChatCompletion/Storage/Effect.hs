@@ -19,4 +19,3 @@ data ChatCompletionStorage :: Effect where
 type instance DispatchOf ChatCompletionStorage = 'Dynamic
 
 makeEffect ''ChatCompletionStorage
-

@@ -1,5 +1,12 @@
 module ChatCompletion.PostgresLoggerSpec where
 
+import ChatCompletion.PostgresLogger
+    ( JsonField (..)
+    , createTableQuery
+    , getAllLogs
+    , postgresResponseLogger
+    )
+import ChatCompletion.Types (ConversationId (..))
 import Control.Lens
 import Data.Aeson (Result (..), Value, fromJSON, object, toJSON)
 import Data.Aeson qualified as Aeson
@@ -8,13 +15,6 @@ import Data.Time
 import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
 import Data.UUID.V4 (nextRandom)
 import Database.PostgreSQL.Simple
-import ChatCompletion.PostgresLogger
-    ( JsonField (..)
-    , createTableQuery
-    , getAllLogs
-    , postgresResponseLogger
-    )
-import ChatCompletion.Types (ConversationId (..))
 import OpenAI.V1.Chat.Completions (ChatCompletionObject)
 import Relude
 import Test.Hspec

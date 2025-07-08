@@ -1,7 +1,7 @@
 module ChatCompletion.Effect where
 
-import Data.Aeson (FromJSON, ToJSON)
 import ChatCompletion.Types
+import Data.Aeson (FromJSON, ToJSON)
 import Effectful
 import Effectful.TH
 import Relude
@@ -11,7 +11,10 @@ data ChatCompletionError = ChatCompletionError String
     deriving anyclass (ToJSON, FromJSON)
 
 data ChatCompletion :: Effect where
-    RespondToConversation :: ConversationId -> ChatCompletion m [ChatMsg]
+    RespondToConversation
+        :: (forall es. [ToolDef es])
+        -> ConversationId
+        -> ChatCompletion m [ChatMsg]
 
 type instance DispatchOf ChatCompletion = 'Dynamic
 makeEffect ''ChatCompletion
