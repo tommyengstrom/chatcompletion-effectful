@@ -95,6 +95,70 @@ library
     , yaml
   default-language: GHC2024
 
+executable examples
+  main-is: Main.hs
+  other-modules:
+      Paths_chatcompletion_effectful
+  autogen-modules:
+      Paths_chatcompletion_effectful
+  hs-source-dirs:
+      examples
+  default-extensions:
+      AllowAmbiguousTypes
+      BlockArguments
+      DataKinds
+      DefaultSignatures
+      DeriveAnyClass
+      DerivingStrategies
+      DerivingVia
+      DuplicateRecordFields
+      FunctionalDependencies
+      GeneralizedNewtypeDeriving
+      LambdaCase
+      NoFieldSelectors
+      NoImplicitPrelude
+      OverloadedLabels
+      OverloadedLists
+      OverloadedStrings
+      NoStarIsType
+      StrictData
+      TemplateHaskell
+      TupleSections
+      TypeApplications
+      TypeFamilyDependencies
+      TypeOperators
+      ViewPatterns
+  ghc-options: -Weverything -Werror -Wno-all-missed-specialisations -Wno-missed-specialisations -Wno-implicit-prelude -Wno-missing-export-lists -Wno-missing-import-lists -Wno-missing-local-signatures -Wno-missing-safe-haskell-mode -Wno-prepositive-qualified-module -Wno-safe -Wno-unsafe -Wno-missing-kind-signatures -Wno-missing-poly-kind-signatures -Wno-monomorphism-restriction -Wno-missing-role-annotations -Wno-unused-packages -Wno-partial-fields -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      QuickCheck
+    , aeson
+    , base
+    , base64-bytestring
+    , bytestring
+    , chatcompletion-effectful
+    , containers
+    , deepseq
+    , effectful
+    , effectful-th
+    , generic-lens
+    , hashable
+    , http-types
+    , lens
+    , mtl
+    , openai
+    , openapi3
+    , postgresql-simple
+    , pretty-simple
+    , relude
+    , text
+    , time
+    , unliftio
+    , unordered-containers
+    , uuid
+    , vector
+    , yaml
+  default-language: GHC2024
+
 test-suite chatcompletion-effectful-integration-test
   type: exitcode-stdio-1.0
   main-is: IntegrationSpec.hs
