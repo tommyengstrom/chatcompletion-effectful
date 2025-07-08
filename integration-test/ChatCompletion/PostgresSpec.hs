@@ -29,6 +29,7 @@ spec = describe "runChatCompletionStoragePostgres" $ do
     let setupTable = do
             conn <- settings ^. #getConnection
             _ <- execute_ conn $ createTableQuery settings
+            _ <- execute_ conn $ createIndexQuery settings
             close conn
 
     let cleanup = do

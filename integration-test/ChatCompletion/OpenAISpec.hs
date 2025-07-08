@@ -41,7 +41,7 @@ spec = describe "ChatCompletion OpenAI" $ do
             convId <- createConversation "You are a hungry cowboy."
             messages <- getConversation convId
             resp <- sendMessages [] messages
-            appendMessages convId [resp]
+            appendMessage convId (chatMsgToIn resp)
             conv <- getConversation convId
             pure (resp, conv)
         response `shouldSatisfy` \case
@@ -55,7 +55,7 @@ spec = describe "ChatCompletion OpenAI" $ do
             appendUserMessage convId "2 + 2"
             messages <- getConversation convId
             resp <- sendMessages [] messages
-            appendMessages convId [resp]
+            appendMessage convId (chatMsgToIn resp)
             conv <- getConversation convId
             pure (resp, conv)
         response `shouldSatisfy` \case
@@ -140,3 +140,12 @@ showPhoneNumber =
                         }
             FullName n -> pure $ Left $ "No phone number for contact: " <> T.unpack n
         )
+
+-- Helper function to convert ChatMsg to ChatMsgIn
+chatMsgToIn :: ChatMsg -> ChatMsgIn
+chatMsgToIn = \case
+    SystemMsg content _ -> SystemMsgIn content
+    UserMsg content _ -> UserMsgIn content
+    AssistantMsg content _ -> AssistantMsgIn content
+    ToolCallMsg toolCalls _ -> ToolCallMsgIn toolCalls
+    ToolCallResponseMsg toolCallId toolResponse _ -> ToolCallResponseMsgIn toolCallId toolResponse

@@ -8,27 +8,23 @@ import Control.Lens ((^.), to)
 import Data.Aeson
 import Data.Generics.Product (typed)
 import Data.Text qualified as Text
-import Data.Time
 import Effectful
 import Effectful.Error.Static
 import Relude
 
 -- | Send a user message and get response (no tool handling)
 appendUserMessage
-    :: IOE :> es
-    => ChatCompletionStorage :> es
+    :: ChatCompletionStorage :> es
     => ConversationId
     -> Text
     -> Eff es ()
 appendUserMessage conversationId content = do
-    currentTime <- liftIO getCurrentTime
-    let userMsg = UserMsg{content, createdAt = currentTime}
-    appendMessages conversationId [userMsg]
+    let userMsgIn = UserMsgIn{content}
+    appendMessage conversationId userMsgIn
 
 -- | Send a user message and handle any tool calls automatically
 respondWithTools
-    :: IOE :> es
-    => ChatCompletionStorage :> es
+    :: ChatCompletionStorage :> es
     => ChatCompletion :> es
     => Error ChatCompletionError :> es
     => [ToolDef es]  -- Tools available for this conversation
@@ -42,14 +38,12 @@ respondWithTools tools conversationId content = do
     -- Get response and handle any tool calls
     handleToolLoop tools conversationId []
 
--- | Execute tool calls and return the responses
+-- | Execute tool calls and return the responses  
 executeToolCalls
-    :: IOE :> es
-    => [ToolDef es]
+    :: [ToolDef es]
     -> [ToolCall]
-    -> Eff es [ChatMsg]
+    -> Eff es [ChatMsgIn]
 executeToolCalls tools toolCalls = do
-    now <- liftIO getCurrentTime
     forM toolCalls $ \tc -> do
         response <- case find (\t -> t ^. #name == tc ^. #toolName) tools of
             Nothing -> pure $ ToolResponse
@@ -67,16 +61,14 @@ executeToolCalls tools toolCalls = do
                         { modelResponse = "Tool error: " <> Text.pack err
                         , localResponse = []
                         }
-        pure $ ToolCallResponseMsg
+        pure $ ToolCallResponseMsgIn
             { toolCallId = tc ^. #toolCallId
             , toolResponse = response
-            , createdAt = now
             }
 
 -- | Internal helper to handle the tool execution loop
 handleToolLoop
-    :: IOE :> es
-    => ChatCompletionStorage :> es
+    :: ChatCompletionStorage :> es
     => ChatCompletion :> es
     => Error ChatCompletionError :> es
     => [ToolDef es]
@@ -88,7 +80,7 @@ handleToolLoop tools conversationId accumulated = do
     conv <- getConversation conversationId
 
     response <- sendMessages (toToolDeclaration <$> tools) conv
-    appendMessages conversationId [response]
+    appendMessage conversationId (chatMsgToIn response)
 
     case response of
         -- Assistant message - we're done
@@ -96,9 +88,12 @@ handleToolLoop tools conversationId accumulated = do
 
         -- Tool calls - execute them and continue
         ToolCallMsg{toolCalls} -> do
-            toolResponses <- executeToolCalls tools toolCalls
-            appendMessages conversationId toolResponses
-            let newMessages = response : toolResponses
+            toolResponsesIn <- executeToolCalls tools toolCalls
+            -- Convert tool responses to ChatMsg by fetching the conversation again
+            forM_ toolResponsesIn $ \msgIn -> appendMessage conversationId msgIn
+            -- Get the updated conversation to get messages with timestamps
+            updatedConv <- getConversation conversationId
+            let newMessages = drop (length conv) updatedConv
             handleToolLoop tools conversationId (accumulated ++ newMessages)
 
         -- Unexpected response
@@ -109,3 +104,11 @@ handleToolLoop tools conversationId accumulated = do
         , description = tool ^. #description
         , parameterSchema = tool ^. #parameterSchema
         }
+    
+    chatMsgToIn :: ChatMsg -> ChatMsgIn
+    chatMsgToIn = \case
+        SystemMsg content _ -> SystemMsgIn content
+        UserMsg content _ -> UserMsgIn content
+        AssistantMsg content _ -> AssistantMsgIn content
+        ToolCallMsg toolCalls _ -> ToolCallMsgIn toolCalls
+        ToolCallResponseMsg toolCallId toolResponse _ -> ToolCallResponseMsgIn toolCallId toolResponse

@@ -32,6 +32,26 @@ newtype UIComponent = UIComponent Value
 instance ToSchema UIComponent where
     declareNamedSchema _ = declareNamedSchema $ Proxy @Text
 
+data ChatMsgIn
+    = SystemMsgIn
+        { content :: Text
+        }
+    | UserMsgIn
+        { content :: Text
+        }
+    | AssistantMsgIn
+        { content :: Text
+        }
+    | ToolCallMsgIn
+        { toolCalls :: [ToolCall]
+        }
+    | ToolCallResponseMsgIn
+        { toolCallId :: ToolCallId
+        , toolResponse :: ToolResponse
+        }
+    deriving stock (Show, Eq, Generic)
+    deriving anyclass (FromJSON, ToJSON, ToSchema)
+
 data ChatMsg
     = SystemMsg
         { content :: Text

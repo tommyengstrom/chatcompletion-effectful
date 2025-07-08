@@ -10,7 +10,6 @@ import Data.Generics.Product
 import Data.Generics.Sum
 import Data.Set qualified as Set
 import Data.Text qualified as T
-import Data.Time
 import Data.UUID
 import Effectful
 import Effectful.Error.Static
@@ -85,12 +84,8 @@ specGeneralized runStorage = do
                     convIds <- listConversations
                     convId <- liftIO . generate $ elements convIds
                     conv <- getConversation convId
-                    now <- liftIO getCurrentTime
-                    appendMessages
-                        convId
-                        [ UserMsg userPrompt1 now
-                        , UserMsg userPrompt2 now
-                        ]
+                    appendMessage convId (UserMsgIn userPrompt1)
+                    appendMessage convId (UserMsgIn userPrompt2)
                     (conv,) <$> getConversation convId
                 liftIO $ length beforeAppend + 2 `shouldBe` length afterAppend
                 liftIO

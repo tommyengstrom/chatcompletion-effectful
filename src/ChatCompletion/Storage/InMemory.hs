@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 module ChatCompletion.Storage.InMemory where
 
 import ChatCompletion.Storage.Effect
@@ -36,9 +37,22 @@ runChatCompletionStorageInMemory tvar = interpret \_ -> \case
         case conv of
             Nothing -> throwError $ NoSuchConversation conversationId
             Just c -> pure c
-    AppendMessages conversationId chatMsgs -> do
+    AppendMessage conversationId msgIn -> do
+        msg <- toChatMsg msgIn
         atomically $ do
-            modifyTVar' tvar $ Map.adjust (<> chatMsgs) conversationId
+            modifyTVar' tvar $ Map.adjust (<> [msg]) conversationId
     ListConversations -> do
         conversations <- readTVarIO tvar
         pure $ Map.keys conversations
+
+toChatMsg :: IOE :> es => ChatMsgIn -> Eff es ChatMsg
+toChatMsg msgIn  = do
+    createdAt <- liftIO getCurrentTime
+    pure case msgIn of
+        UserMsgIn {..}  -> UserMsg { ..}
+        SystemMsgIn {..} -> SystemMsg { ..}
+        AssistantMsgIn {..} -> AssistantMsg { ..}
+        ToolCallMsgIn {..} -> ToolCallMsg { ..}
+        ToolCallResponseMsgIn {..} -> ToolCallResponseMsg {..}
+
+
