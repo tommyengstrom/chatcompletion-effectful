@@ -1,6 +1,7 @@
 module ChatCompletion.OpenAISpec where
 
 import Data.Aeson
+import Data.Generics.Sum
 import Data.OpenApi (ToSchema)
 import Data.Text qualified as T
 import ChatCompletion
@@ -10,6 +11,7 @@ import Effectful
 import Effectful.Error.Static
 import Relude
 import Test.Hspec
+import Control.Lens ((^..), folded)
 
 runEffectStack
     :: es
@@ -49,7 +51,6 @@ spec = describe "ChatCompletion OpenAI" $ do
         response `shouldSatisfy` \case
             [AssistantMsg t _] -> T.length t > 0
             _ -> False
-        traverse_ print conv
         conv `shouldSatisfy` (== 2) . length
     it "Reponds to inital UserMsg" $ do
         (response, conv) <- runEffectStack settings tvar [] do
@@ -98,6 +99,10 @@ spec = describe "ChatCompletion OpenAI" $ do
                     AssistantMsg{content} -> T.isInfixOf "123-456-7890" content
                     _ -> False
                 )
+        response `shouldSatisfy` (== 5) . length
+        (response ^.. folded . _Ctor @"ToolCallMsg") `shouldSatisfy` (== 2) . length
+        (response ^.. folded . _Ctor @"ToolCallResponseMsg") `shouldSatisfy` (== 2) . length
+        (response ^.. folded . _Ctor @"AssistantMsg") `shouldSatisfy` (== 1) . length
 
 listContacts :: ToolDef es
 listContacts =
