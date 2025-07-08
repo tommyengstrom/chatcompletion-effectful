@@ -10,17 +10,9 @@ import Effectful
 import Effectful.Error.Static
 import Relude
 
--- | Run the chat completion effect stack
-runChatApp
-    :: es
-        ~ '[ Error ChatCompletionError
-           , ChatCompletionStorage
-           , Error ChatCompletionStorageError
-           , IOE
-           ]
-    => Eff (ChatCompletion ': es) a
-    -> IO a
-runChatApp action = do
+-- | Run the chat completion effect stack with dynamic tools
+runChatApp :: IO ()
+runChatApp = do
     -- Get OpenAI API key from environment
     apiKey <-
         maybe
@@ -32,70 +24,66 @@ runChatApp action = do
     tvar <- newTVarIO mempty
 
     runEff
-        $ runErrorNoCallStackWith (error . show)
+        $ runErrorNoCallStackWith @ChatCompletionStorageError (error . show)
         $ runChatCompletionStorageInMemory tvar
-        $ runErrorNoCallStackWith (error . show)
-        $ runChatCompletionOpenAi settings action
+        $ runErrorNoCallStackWith @ChatCompletionError (error . show)
+        $ runChatCompletionOpenAi settings
+        $ do
+            putStrLn "=== Dynamic Tool Example ==="
+            
+            -- Create a conversation
+            convId <- createConversation "You are a helpful assistant with access to the user's contacts."
+            
+            -- Send a message with tools
+            msgs <- respondWithTools myTools convId "What is John's phone number?"
+            
+            -- Display the conversation
+            for_ msgs $ \msg -> case msg of
+                UserMsg content _ -> 
+                    putStrLn $ "User: " <> T.unpack content
+                AssistantMsg content _ -> 
+                    putStrLn $ "Assistant: " <> T.unpack content
+                ToolCallMsg calls _ -> 
+                    for_ calls $ \(ToolCall _ name _) ->
+                        putStrLn $ "Tool Call: " <> T.unpack name
+                ToolCallResponseMsg _ (ToolResponse modelResp _) _ ->
+                    putStrLn $ "Tool Response: " <> T.unpack modelResp
+                _ -> pure ()
 
--- | Example 1: Simple conversation
-simpleConversation :: IO ()
-simpleConversation = runChatApp $ do
-    putStrLn "=== Simple Conversation ==="
-
-    -- Create a conversation with a system prompt
-    convId <- createConversation "You are a helpful assistant that provides concise answers."
-
-    -- Add a user message
-    appendUserMessage convId "What's the weather like today?"
-
-    -- Get response
-    response <- respondToConversation [] convId
-
-    case response of
-        [AssistantMsg content _] -> do
-            putStrLn $ "User: What's the weather like today?"
-            putStrLn $ "Assistant: " <> T.unpack content
-        _ -> putStrLn "Unexpected response format"
-
--- | Example 2: Tool calling with contacts
-toolCallingExample :: IO ()
-toolCallingExample = runChatApp $ do
-    putStrLn "\n=== Tool Calling Example ==="
-
-    -- Create a conversation with tools
-    convId <-
-        createConversation "You are a helpful assistant with access to the user's contacts."
-
-    -- Ask for contact information
-    appendUserMessage convId "What is John's phone number?"
-    response <- respondToConversation [listContacts, showPhoneNumber] convId
-
-    putStrLn $ "User: What is John's phone number?"
-    putStrLn $ "Response has " <> show (length response) <> " messages:"
-
-    for_ response $ \msg -> case msg of
-        AssistantMsg content _ -> putStrLn $ "  Assistant: " <> T.unpack content
-        ToolCallMsg calls _ -> for_ calls $ \(ToolCall _ name _) ->
-            putStrLn $ "  Tool Call: " <> T.unpack name
-        ToolCallResponseMsg _ (ToolResponse modelResp _) _ ->
-            putStrLn $ "  Tool Response: " <> T.unpack modelResp
-        _ -> putStrLn $ "  Other: " <> show msg
+-- | Define available tools
+myTools :: [ToolDef es]
+myTools = [listContactsTool, showPhoneNumberTool]
 
 -- | Tool definition: List contacts
-listContacts :: ToolDef es
-listContacts =
+listContactsTool :: ToolDef es
+listContactsTool =
     defineToolNoArgument
         "list_contact"
         "List all the contacts of the user."
-        ( pure
-            $ Right
-            $ ToolResponse
-                { modelResponse = "Contacts:\n" <> T.intercalate "\n- " contacts
-                , localResponse = [UIComponent $ toJSON contacts]
-                }
+        ( pure $ Right $ ToolResponse
+            { modelResponse = "Contacts:\n" <> T.intercalate "\n- " contacts
+            , localResponse = [UIComponent $ toJSON contacts]
+            }
         )
   where
     contacts = ["John Snow", "Arya Stark", "Tyrion Lannister"]
+
+-- | Tool definition: Show phone number
+showPhoneNumberTool :: ToolDef es
+showPhoneNumberTool =
+    defineToolWithArgument @FullName
+        "show_phone_number"
+        "Show the phone number of a contact. Must use full name for lookup."
+        ( \case
+            FullName "John Snow" -> pure $ Right $ ToolResponse
+                { modelResponse = "Phone number: 123-456-7890"
+                , localResponse = [UIComponent $ toJSON ("123-456-7890" :: Text)]
+                }
+            FullName n -> pure $ Right $ ToolResponse
+                { modelResponse = "No phone number for contact: " <> n
+                , localResponse = []
+                }
+        )
 
 -- | Data type for contact name parameter
 data FullName = FullName
@@ -104,32 +92,14 @@ data FullName = FullName
     deriving stock (Show, Eq, Generic)
     deriving anyclass (FromJSON, ToJSON, ToSchema)
 
--- | Tool definition: Show phone number
-showPhoneNumber :: ToolDef es
-showPhoneNumber =
-    defineToolWithArgument
-        "show_phone_number"
-        "Show the phone number of a contact. Must use full name for lookup."
-        ( \case
-            FullName "John Snow" ->
-                pure
-                    $ Right
-                    $ ToolResponse
-                        { modelResponse = "Phone number: 123-456-7890"
-                        , localResponse = [UIComponent $ toJSON ("123-456-7890" :: Text)]
-                        }
-            FullName n -> pure $ Left $ "No phone number for contact: " <> T.unpack n
-        )
-
--- | Main function to run all examples
+-- | Main function
 main :: IO ()
 main = do
-    putStrLn "ChatCompletion Examples"
-    putStrLn "====================="
+    putStrLn "ChatCompletion Dynamic Tools Example"
+    putStrLn "==================================="
     putStrLn "Make sure to set OPENAI_API_KEY environment variable"
     putStrLn ""
 
-    simpleConversation
-    toolCallingExample
+    runChatApp
 
-    putStrLn "\n=== Examples Complete ==="
+    putStrLn "\n=== Example Complete ==="

@@ -68,6 +68,14 @@ data ToolDef es = ToolDef
 type ToolName = Text
 type ToolDescription = Text
 
+data ToolDeclaration = ToolDeclaration
+    { name :: ToolName
+    , description :: ToolDescription
+    , parameterSchema :: Maybe Value -- JSON schema for the tool parameters
+    }
+    deriving stock (Show, Eq, Generic)
+    deriving anyclass (FromJSON, ToJSON)
+
 data ToolCall
     = ToolCall
     { toolCallId :: ToolCallId

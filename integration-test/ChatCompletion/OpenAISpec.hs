@@ -14,15 +14,9 @@ import Relude
 import Test.Hspec
 
 runEffectStack
-    :: es
-        ~ '[ Error ChatCompletionError
-           , ChatCompletionStorage
-           , Error ChatCompletionStorageError
-           , IOE
-           ]
-    => OpenAiSettings
+    :: OpenAiSettings
     -> TVar (Map ConversationId [ChatMsg])
-    -> Eff (ChatCompletion ': es) a
+    -> Eff '[ChatCompletion, Error ChatCompletionError, ChatCompletionStorage, Error ChatCompletionStorageError, IOE] a
     -> IO a
 runEffectStack settings tvar =
     runEff
@@ -45,11 +39,13 @@ spec = describe "ChatCompletion OpenAI" $ do
     it "Responds to only SystemMsg" $ do
         (response, conv) <- runEffectStack settings tvar do
             convId <- createConversation "You are a hungry cowboy."
-            (,)
-                <$> respondToConversation [] convId
-                <*> getConversation convId
+            messages <- getConversation convId
+            resp <- sendMessages [] messages
+            appendMessages convId [resp]
+            conv <- getConversation convId
+            pure (resp, conv)
         response `shouldSatisfy` \case
-            [AssistantMsg t _] -> T.length t > 0
+            AssistantMsg t _ -> T.length t > 0
             _ -> False
         conv `shouldSatisfy` (== 2) . length
     it "Reponds to inital UserMsg" $ do
@@ -57,19 +53,21 @@ spec = describe "ChatCompletion OpenAI" $ do
             convId <-
                 createConversation "Act exactly as a simple calculator. No extra text, just the answer."
             appendUserMessage convId "2 + 2"
-            (,)
-                <$> respondToConversation [] convId
-                <*> getConversation convId
+            messages <- getConversation convId
+            resp <- sendMessages [] messages
+            appendMessages convId [resp]
+            conv <- getConversation convId
+            pure (resp, conv)
         response `shouldSatisfy` \case
-            [AssistantMsg t _] -> t == "4"
+            AssistantMsg t _ -> t == "4"
             _ -> False
         conv `shouldSatisfy` (== 3) . length
 
     it "Tool call is correctly triggered" $ do
         response <- runEffectStack settings tvar do
             convId <- createConversation "You are the users assistant."
-            appendUserMessage convId "What is my friend John's last name?"
-            respondToConversation [listContacts] convId
+            msgs <- respondWithTools [listContacts] convId "What is my friend John's last name?"
+            pure msgs
         response
             `shouldSatisfy` any
                 ( \case
@@ -80,8 +78,8 @@ spec = describe "ChatCompletion OpenAI" $ do
     it "Resolves multiple tool calls" $ do
         response <- runEffectStack settings tvar do
             convId <- createConversation "You are the users assistant."
-            appendUserMessage convId "What is John's phone number?"
-            respondToConversation [listContacts, showPhoneNumber] convId
+            msgs <- respondWithTools [listContacts, showPhoneNumber] convId "What is John's phone number?"
+            pure msgs
         response
             `shouldSatisfy` any
                 ( \case

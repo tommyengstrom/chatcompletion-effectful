@@ -65,34 +65,24 @@ library
       TypeFamilyDependencies
       TypeOperators
       ViewPatterns
-  ghc-options: -Weverything -Werror -Wno-all-missed-specialisations -Wno-missed-specialisations -Wno-implicit-prelude -Wno-missing-export-lists -Wno-missing-import-lists -Wno-missing-local-signatures -Wno-missing-safe-haskell-mode -Wno-prepositive-qualified-module -Wno-safe -Wno-unsafe -Wno-missing-kind-signatures -Wno-missing-poly-kind-signatures -Wno-monomorphism-restriction -Wno-missing-role-annotations -Wno-unused-packages -Wno-partial-fields
+  ghc-options: -Weverything -Werror -Wno-all-missed-specialisations -Wno-missed-specialisations -Wno-implicit-prelude -Wno-missing-export-lists -Wno-missing-import-lists -Wno-missing-local-signatures -Wno-missing-safe-haskell-mode -Wno-prepositive-qualified-module -Wno-safe -Wno-unsafe -Wno-missing-kind-signatures -Wno-missing-poly-kind-signatures -Wno-monomorphism-restriction -Wno-missing-role-annotations -Wno-partial-fields -Wno-unused-packages
   build-depends:
-      QuickCheck
-    , aeson
+      aeson
     , base
-    , base64-bytestring
-    , bytestring
     , containers
-    , deepseq
     , effectful
     , effectful-th
     , generic-lens
-    , hashable
-    , http-types
     , lens
-    , mtl
     , openai
     , openapi3
     , postgresql-simple
-    , pretty-simple
     , relude
     , text
     , time
     , unliftio
-    , unordered-containers
     , uuid
     , vector
-    , yaml
   default-language: GHC2024
 
 executable examples
@@ -128,7 +118,7 @@ executable examples
       TypeFamilyDependencies
       TypeOperators
       ViewPatterns
-  ghc-options: -Weverything -Werror -Wno-all-missed-specialisations -Wno-missed-specialisations -Wno-implicit-prelude -Wno-missing-export-lists -Wno-missing-import-lists -Wno-missing-local-signatures -Wno-missing-safe-haskell-mode -Wno-prepositive-qualified-module -Wno-safe -Wno-unsafe -Wno-missing-kind-signatures -Wno-missing-poly-kind-signatures -Wno-monomorphism-restriction -Wno-missing-role-annotations -Wno-unused-packages -Wno-partial-fields -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Weverything -Werror -Wno-all-missed-specialisations -Wno-missed-specialisations -Wno-implicit-prelude -Wno-missing-export-lists -Wno-missing-import-lists -Wno-missing-local-signatures -Wno-missing-safe-haskell-mode -Wno-prepositive-qualified-module -Wno-safe -Wno-unsafe -Wno-missing-kind-signatures -Wno-missing-poly-kind-signatures -Wno-monomorphism-restriction -Wno-missing-role-annotations -Wno-partial-fields -Wno-unused-packages -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       QuickCheck
     , aeson
@@ -195,7 +185,7 @@ test-suite chatcompletion-effectful-integration-test
       TypeFamilyDependencies
       TypeOperators
       ViewPatterns
-  ghc-options: -Weverything -Werror -Wno-all-missed-specialisations -Wno-missed-specialisations -Wno-implicit-prelude -Wno-missing-export-lists -Wno-missing-import-lists -Wno-missing-local-signatures -Wno-missing-safe-haskell-mode -Wno-prepositive-qualified-module -Wno-safe -Wno-unsafe -Wno-missing-kind-signatures -Wno-missing-poly-kind-signatures -Wno-monomorphism-restriction -Wno-missing-role-annotations -Wno-unused-packages -Wno-partial-fields -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Weverything -Werror -Wno-all-missed-specialisations -Wno-missed-specialisations -Wno-implicit-prelude -Wno-missing-export-lists -Wno-missing-import-lists -Wno-missing-local-signatures -Wno-missing-safe-haskell-mode -Wno-prepositive-qualified-module -Wno-safe -Wno-unsafe -Wno-missing-kind-signatures -Wno-missing-poly-kind-signatures -Wno-monomorphism-restriction -Wno-missing-role-annotations -Wno-partial-fields -Wno-unused-packages -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       QuickCheck
     , aeson
@@ -262,7 +252,7 @@ test-suite chatcompletion-effectful-test
       TypeFamilyDependencies
       TypeOperators
       ViewPatterns
-  ghc-options: -Weverything -Werror -Wno-all-missed-specialisations -Wno-missed-specialisations -Wno-implicit-prelude -Wno-missing-export-lists -Wno-missing-import-lists -Wno-missing-local-signatures -Wno-missing-safe-haskell-mode -Wno-prepositive-qualified-module -Wno-safe -Wno-unsafe -Wno-missing-kind-signatures -Wno-missing-poly-kind-signatures -Wno-monomorphism-restriction -Wno-missing-role-annotations -Wno-unused-packages -Wno-partial-fields -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Weverything -Werror -Wno-all-missed-specialisations -Wno-missed-specialisations -Wno-implicit-prelude -Wno-missing-export-lists -Wno-missing-import-lists -Wno-missing-local-signatures -Wno-missing-safe-haskell-mode -Wno-prepositive-qualified-module -Wno-safe -Wno-unsafe -Wno-missing-kind-signatures -Wno-missing-poly-kind-signatures -Wno-monomorphism-restriction -Wno-missing-role-annotations -Wno-partial-fields -Wno-unused-packages -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       QuickCheck
     , aeson
