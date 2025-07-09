@@ -77,13 +77,14 @@ library:
     - effectful
     - effectful-th
     - generic-lens
+    - http-api-data
     - lens
     - openai
     - openapi3
     - postgresql-simple
+    - relude
     - text
     - time
-    - relude
     - unliftio
     - uuid
     - vector

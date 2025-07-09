@@ -73,6 +73,7 @@ library
     , effectful
     , effectful-th
     , generic-lens
+    , http-api-data
     , lens
     , openai
     , openapi3

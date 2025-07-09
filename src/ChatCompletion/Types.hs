@@ -8,13 +8,21 @@ import Data.Time
 import Data.UUID (UUID)
 import Effectful (Eff)
 import GHC.Generics (Generic)
+import Web.HttpApiData
 import Prelude
 
 type SystemPrompt = Text
 
 newtype ConversationId = ConversationId UUID
     deriving stock (Show, Eq, Ord, Generic)
-    deriving newtype (FromJSON, ToJSON, ToSchema)
+    deriving newtype
+        ( FromJSON
+        , ToJSON
+        , ToSchema
+        , ToParamSchema
+        , FromHttpApiData
+        , ToHttpApiData
+        )
 
 newtype ToolCallId = ToolCallId Text
     deriving stock (Show, Eq, Ord, Generic)
