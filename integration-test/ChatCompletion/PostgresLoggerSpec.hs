@@ -89,7 +89,7 @@ spec = describe "PostgresLogger" $ do
                         (logEntry ^. #conversationId) `shouldBe` testConvId
                         -- Verify timestamp is recent
                         now <- getCurrentTime
-                        let logTime = logEntry ^. #loggedAt
+                        let logTime = logEntry ^. #createdAt
                         diffUTCTime now logTime `shouldSatisfy` (< 10) -- Within 10 seconds
     describe "can log multiple entries" $ do
         -- Create a unique table name for this test

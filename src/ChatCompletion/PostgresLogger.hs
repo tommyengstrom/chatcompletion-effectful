@@ -34,7 +34,7 @@ data LogEntry a = LogEntry
     { logId :: Int64
     , conversationId :: ConversationId
     , response :: JsonField a
-    , loggedAt :: UTCTime
+    , createdAt :: UTCTime
     }
     deriving stock (Show, Generic)
 
@@ -75,7 +75,7 @@ createTableQuery tableName =
         <> "id BIGSERIAL PRIMARY KEY, "
         <> "conversation_id UUID NOT NULL, "
         <> "response JSONB NOT NULL, "
-        <> "logged_at TIMESTAMP WITH TIME ZONE NOT NULL"
+        <> "created_at TIMESTAMP WITH TIME ZONE NOT NULL"
         <> ")"
 
 insertQuery :: TableName -> Query
@@ -84,23 +84,23 @@ insertQuery tableName =
         $ toString
         $ "INSERT INTO "
         <> tableName
-        <> " (conversation_id, response, logged_at) VALUES (?, ?, ?)"
+        <> " (conversation_id, response, created_at) VALUES (?, ?, ?)"
 
 selectAllQuery :: TableName -> Query
 selectAllQuery tableName =
     fromString
         $ toString
-        $ "SELECT id, conversation_id, response, logged_at FROM "
+        $ "SELECT id, conversation_id, response, created_at FROM "
         <> tableName
-        <> " ORDER BY logged_at DESC"
+        <> " ORDER BY created_at DESC"
 
 selectByTimeRangeQuery :: TableName -> Query
 selectByTimeRangeQuery tableName =
     fromString
         $ toString
-        $ "SELECT id, conversation_id, response, logged_at FROM "
+        $ "SELECT id, conversation_id, response, created_at FROM "
         <> tableName
-        <> " WHERE logged_at >= ? AND logged_at <= ? ORDER BY logged_at DESC"
+        <> " WHERE created_at >= ? AND created_at <= ? ORDER BY created_at DESC"
 
 -- Helper functions for querying logs
 getAllLogs :: (FromJSON a, Typeable a) => TableName -> IO Connection -> IO [LogEntry a]

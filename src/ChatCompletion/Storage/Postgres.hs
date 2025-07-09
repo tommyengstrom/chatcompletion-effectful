@@ -21,7 +21,7 @@ import Relude
 
 data PostgresSettings = PostgresSettings
     { getConnection :: IO Connection
-    , tableName :: Text
+    , conversationsTable :: Text
     }
     deriving stock (Generic)
 
@@ -139,7 +139,7 @@ createTableQuery settings =
         toString $
             "CREATE TABLE IF NOT EXISTS "
                 <> settings
-                    ^. #tableName
+                    ^. #conversationsTable
                 <> " ("
                 <> "id SERIAL PRIMARY KEY, "
                 <> "conversation_id UUID NOT NULL, "
@@ -153,7 +153,7 @@ insertMessageQuery settings =
         toString $
             "INSERT INTO "
                 <> settings
-                    ^. #tableName
+                    ^. #conversationsTable
                 <> " (conversation_id, message) VALUES (?, ?)"
 
 deleteConversationQuery :: PostgresSettings -> Query
@@ -162,7 +162,7 @@ deleteConversationQuery settings =
         toString $
             "DELETE FROM "
                 <> settings
-                    ^. #tableName
+                    ^. #conversationsTable
                 <> " WHERE conversation_id = ?"
 
 selectMessagesQuery :: PostgresSettings -> Query
@@ -171,7 +171,7 @@ selectMessagesQuery settings =
         toString $
             "SELECT id, conversation_id, message, created_at FROM "
                 <> settings
-                    ^. #tableName
+                    ^. #conversationsTable
                 <> " WHERE conversation_id = ? ORDER BY created_at ASC, id ASC"
 
 checkConversationExistsQuery :: PostgresSettings -> Query
@@ -180,7 +180,7 @@ checkConversationExistsQuery settings =
         toString $
             "SELECT 1 FROM "
                 <> settings
-                    ^. #tableName
+                    ^. #conversationsTable
                 <> " WHERE conversation_id = ? LIMIT 1"
 
 listConversationsQuery :: PostgresSettings -> Query
@@ -189,7 +189,7 @@ listConversationsQuery settings =
         toString $
             "SELECT DISTINCT conversation_id FROM "
                 <> settings
-                    ^. #tableName
+                    ^. #conversationsTable
 
 createIndexQuery :: PostgresSettings -> Query
 createIndexQuery settings =
@@ -197,8 +197,8 @@ createIndexQuery settings =
         toString $
             "CREATE INDEX IF NOT EXISTS idx_"
                 <> settings
-                    ^. #tableName
+                    ^. #conversationsTable
                 <> "_conversation_id ON "
                 <> settings
-                    ^. #tableName
+                    ^. #conversationsTable
                 <> " (conversation_id)"

@@ -13,7 +13,7 @@ import Test.Hspec
 spec :: Spec
 spec = describe "runChatCompletionStoragePostgres" $ do
     -- Create a unique table name based on current time
-    tableName <- runIO $ do
+    conversationsTable <- runIO $ do
         now <- getCurrentTime
         let unixTime :: String = show $ (floor $ utcTimeToPOSIXSeconds now :: Integer)
         pure $ "conversations_" <> toText unixTime
@@ -22,24 +22,17 @@ spec = describe "runChatCompletionStoragePostgres" $ do
     let settings =
             PostgresSettings
                 { getConnection = connectPostgreSQL connectionString
-                , tableName = tableName
+                , conversationsTable = conversationsTable
                 }
-
-    -- Setup and cleanup functions
-    let setupTable = do
-            conn <- settings ^. #getConnection
-            _ <- execute_ conn $ createTableQuery settings
-            _ <- execute_ conn $ createIndexQuery settings
-            close conn
 
     let cleanup = do
             conn <- settings ^. #getConnection
-            _ <- execute_ conn $ fromString $ toString $ "DROP TABLE IF EXISTS " <> tableName
+            _ <- execute_ conn $ fromString $ toString $ "DROP TABLE IF EXISTS " <> conversationsTable
             close conn
 
     -- Clean up before tests, setup table, then run tests with cleanup after
     runIO do
         cleanup
-        setupTable
+        setupTable settings
     afterAll_ cleanup
         $ specGeneralized (runChatCompletionStoragePostgres settings)
