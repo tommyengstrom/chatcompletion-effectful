@@ -125,6 +125,14 @@ runChatCompletionStoragePostgres settings eff = do
             close conn
             pure $ map (\(Only cid) -> cid) result
 
+setupTable :: PostgresSettings -> IO ()
+setupTable settings = do
+    conn <- settings ^. #getConnection
+    withTransaction conn $ do
+        void $ execute_ conn (createTableQuery settings)
+        void $ execute_ conn (createIndexQuery settings)
+    close conn
+
 createTableQuery :: PostgresSettings -> Query
 createTableQuery settings =
     fromString $
