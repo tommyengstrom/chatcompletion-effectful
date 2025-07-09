@@ -50,7 +50,7 @@ defineToolWithArgument name' description' executeFunction =
         { name = name'
         , description = description'
         , parameterSchema =
-            Just . toJSON $ toSchema (Proxy @a)
+            Just . toJSON $ toInlinedSchema (Proxy @a)
                 & additionalProperties ?~ AdditionalPropertiesAllowed False
         , executeFunction = \args -> do
             case fromJSON args of
