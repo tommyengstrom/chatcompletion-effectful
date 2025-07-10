@@ -174,7 +174,7 @@ mkToolFromDeclaration t =
             { name = t ^. #name
             , description = t ^. #description . to Just
             , parameters = t ^. #parameterSchema
-            , strict = True <$ t ^. #parameterSchema
+            , strict = Nothing -- True <$ t ^. #parameterSchema -- they seem to not support maybe values?
             }
 
 -- | Convert the reponse from OpenAI to the internal ChatMsg format.
