@@ -1,6 +1,8 @@
 module ChatCompletion.Types where
 
+import Control.Lens hiding ((.=))
 import Data.Aeson
+import Data.Map (Map)
 import Data.OpenApi
 import Data.Proxy
 import Data.Text (Text)
@@ -28,11 +30,6 @@ newtype ToolCallId = ToolCallId Text
     deriving stock (Show, Eq, Ord, Generic)
     deriving newtype (FromJSON, ToJSON, ToSchema)
 
-newtype ToolArgs = ToolArgs Text
-    deriving stock (Show, Eq, Generic)
-    deriving newtype (FromJSON, ToJSON)
-instance ToSchema ToolArgs where
-    declareNamedSchema _ = declareNamedSchema $ Proxy @Text
 
 newtype UIComponent = UIComponent Value
     deriving stock (Show, Eq, Generic)
@@ -104,14 +101,30 @@ data ToolDeclaration = ToolDeclaration
     deriving stock (Show, Eq, Generic)
     deriving anyclass (FromJSON, ToJSON)
 
+-- | Represents a tool/function call made by the LLM
 data ToolCall
     = ToolCall
-    { toolCallId :: ToolCallId
-    , toolName :: ToolName
-    , toolArgs :: ToolArgs
+    { toolCallId :: ToolCallId      -- ^ Unique identifier for this tool call
+    , toolName :: ToolName          -- ^ Name of the tool to invoke
+    , toolArgs :: Map Text Value    -- ^ Arguments as key-value pairs
     }
     deriving stock (Show, Eq, Generic)
-    deriving anyclass (FromJSON, ToJSON, ToSchema)
+    deriving anyclass (FromJSON, ToJSON)
+
+instance ToSchema ToolCall where
+    declareNamedSchema _ = do
+        textSchema <- declareSchemaRef (Proxy @Text)
+        return $ NamedSchema (Just "ToolCall") $ mempty
+            & type_ ?~ OpenApiObject
+            & properties .~
+                [ ("toolCallId", textSchema)
+                , ("toolName", textSchema)
+                , ("toolArgs", Inline $ mempty
+                    & type_ ?~ OpenApiObject
+                    & additionalProperties ?~ AdditionalPropertiesAllowed True
+                  )
+                ]
+            & required .~ ["toolCallId", "toolName", "toolArgs"]
 
 data ToolResponse
     = ToolResponse

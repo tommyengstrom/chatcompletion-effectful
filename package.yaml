@@ -78,11 +78,15 @@ library:
     - effectful-th
     - generic-lens
     - http-api-data
+    - http-client
+    - http-client-tls
     - lens
     - openai
     - openapi3
     - postgresql-simple
     - relude
+    - servant
+    - servant-client
     - text
     - time
     - unliftio
@@ -136,7 +140,9 @@ tests:
       - integration-test
       - test
     other-modules:
-      - ChatCompletion.OpenAISpec
+      - ChatCompletion.Common
+      - ChatCompletion.Provider.OpenAISpec
+      - ChatCompletion.Provider.GoogleSpec
       - ChatCompletion.PostgresLoggerSpec
       - ChatCompletion.PostgresSpec  
       - ChatCompletion.Storage.InMemorySpec

@@ -1,7 +1,7 @@
 module Main where
 
 import ChatCompletion
-import ChatCompletion.OpenAI
+import ChatCompletion.Providers.OpenAI
 import ChatCompletion.Storage.InMemory
 import Data.Aeson
 import Data.OpenApi (ToSchema)

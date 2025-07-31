@@ -1,6 +1,6 @@
 cabal-version: 2.2
 
--- This file has been generated from package.yaml by hpack version 0.38.0.
+-- This file has been generated from package.yaml by hpack version 0.38.1.
 --
 -- see: https://github.com/sol/hpack
 
@@ -27,8 +27,12 @@ library
   exposed-modules:
       ChatCompletion
       ChatCompletion.Effect
-      ChatCompletion.OpenAI
       ChatCompletion.PostgresLogger
+      ChatCompletion.Providers.Google
+      ChatCompletion.Providers.Google.API
+      ChatCompletion.Providers.Google.Convert
+      ChatCompletion.Providers.Google.Types
+      ChatCompletion.Providers.OpenAI
       ChatCompletion.Storage.Effect
       ChatCompletion.Storage.InMemory
       ChatCompletion.Storage.Postgres
@@ -74,11 +78,15 @@ library
     , effectful-th
     , generic-lens
     , http-api-data
+    , http-client
+    , http-client-tls
     , lens
     , openai
     , openapi3
     , postgresql-simple
     , relude
+    , servant
+    , servant-client
     , text
     , time
     , unliftio
@@ -154,7 +162,9 @@ test-suite chatcompletion-effectful-integration-test
   type: exitcode-stdio-1.0
   main-is: IntegrationSpec.hs
   other-modules:
-      ChatCompletion.OpenAISpec
+      ChatCompletion.Common
+      ChatCompletion.Provider.OpenAISpec
+      ChatCompletion.Provider.GoogleSpec
       ChatCompletion.PostgresLoggerSpec
       ChatCompletion.PostgresSpec
       ChatCompletion.Storage.InMemorySpec

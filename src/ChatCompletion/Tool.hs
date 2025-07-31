@@ -1,26 +1,24 @@
 module ChatCompletion.Tool where
 
-import ChatCompletion.Effect
 import ChatCompletion.Types
 import Control.Lens
 import Data.Aeson
+import Data.Aeson.Key (fromText)
+import Data.Aeson.KeyMap qualified as KM
 import Data.Generics.Labels ()
-import Data.Generics.Product
+import Data.Map qualified as Map
 import Data.OpenApi
 import Effectful
-import Effectful.Error.Static
 import Relude
 
 runTool
-    :: Error ChatCompletionError :> es
-    => ToolDef es
-    -> ToolArgs
+    :: ToolDef es
+    -> Map Text Value
     -> Eff es (Either String ToolResponse)
 runTool tool args = do
-    parsedArgs <- case args ^. typed @Text . to eitherDecodeStrictText of
-        Left err -> throwError $ ChatCompletionError $ "Failed to parse tool arguments: " <> err
-        Right val -> pure val
-    tool ^. #executeFunction $ parsedArgs
+    -- Convert Map to JSON object
+    let argsValue = Object (KM.fromMap (Map.mapKeys fromText args))
+    tool ^. #executeFunction $ argsValue
 
 defineToolNoArgument
     :: forall es
