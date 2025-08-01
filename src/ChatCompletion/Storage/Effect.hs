@@ -3,11 +3,6 @@ module ChatCompletion.Storage.Effect where
 import ChatCompletion.Types
 import Effectful
 import Effectful.TH
-import Relude
-
-newtype ChatCompletionStorageError
-    = NoSuchConversation ConversationId
-    deriving stock (Show, Eq)
 
 data ChatCompletionStorage :: Effect where
     CreateConversation :: SystemPrompt -> ChatCompletionStorage m ConversationId

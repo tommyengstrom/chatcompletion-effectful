@@ -90,7 +90,7 @@ runChatCompletionOpenAi settings es = do
             sendMessagesToOpenAI createChatCompletion tools messages
 
     adapt :: IO x -> Eff es x
-    adapt m = liftIO m `catchAny` \e -> throwError . ChatCompletionError $ displayException e
+    adapt m = liftIO m `catchAny` \e -> throwError . ProviderError . toText $ displayException e
 
     sendMessagesToOpenAI
         :: (CreateChatCompletion -> IO ChatCompletionObject)
@@ -112,10 +112,11 @@ runChatCompletionOpenAi settings es = do
                     }
         case response of
             Left err ->
-                throwError
-                    . ChatCompletionError
-                    $ "OpenAI API error: "
-                    <> displayException err
+                throwError . NetworkError $
+                    NetworkErrorDetails
+                        { operation = "OpenAI API call"
+                        , cause = toText $ displayException err
+                        }
             Right chatCompletionObject -> do
                 now <- liftIO getCurrentTime
                 let chatMsg :: Either String ChatMsg
@@ -129,7 +130,7 @@ runChatCompletionOpenAi settings es = do
                         fromOpenAIMessage now openAiMsg
                 case chatMsg of
                     Right msg -> pure msg
-                    Left err -> throwError $ ChatCompletionError err
+                    Left err -> throwError . ProviderError $ toText err
 
 toOpenAIMessage :: ChatMsg -> Message (Vector Content)
 toOpenAIMessage msg = case msg of

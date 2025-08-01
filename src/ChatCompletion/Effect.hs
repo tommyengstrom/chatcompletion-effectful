@@ -1,14 +1,12 @@
-module ChatCompletion.Effect where
+module ChatCompletion.Effect 
+    ( module ChatCompletion.Effect
+    , module ChatCompletion.Error
+    ) where
 
+import ChatCompletion.Error
 import ChatCompletion.Types
-import Data.Aeson (FromJSON, ToJSON)
 import Effectful
 import Effectful.TH
-import Relude
-
-data ChatCompletionError = ChatCompletionError String
-    deriving stock (Show, Eq, Generic)
-    deriving anyclass (ToJSON, FromJSON)
 
 data ChatCompletion :: Effect where
     -- Send messages to the LLM and get a single response

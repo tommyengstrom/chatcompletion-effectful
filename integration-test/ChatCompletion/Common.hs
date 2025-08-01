@@ -16,7 +16,7 @@ import Test.Hspec
 specWithProvider
     :: ( forall a
           . TVar (Map ConversationId [ChatMsg])
-          -> Eff '[ChatCompletion, Error ChatCompletionError, ChatCompletionStorage, Error ChatCompletionStorageError, IOE] a
+          -> Eff '[ChatCompletion, ChatCompletionStorage, Error ChatCompletionError, IOE] a
           -> IO a
        )
     -> Spec

@@ -3,6 +3,7 @@
 module ChatCompletion.Storage.Postgres where
 
 import ChatCompletion.Storage.Effect
+import ChatCompletion.Error (ChatCompletionError(..), StorageErrorDetails(..))
 import ChatCompletion.Types
 import Control.Lens
 import Data.Aeson (Value, decode, encode, toJSON)
@@ -73,7 +74,7 @@ chatMsgFromIn msgIn timestamp = case msgIn of
 runChatCompletionStoragePostgres
     :: forall es a
      . ( IOE :> es
-       , Error ChatCompletionStorageError :> es
+       , Error ChatCompletionError :> es
        )
     => PostgresSettings
     -> Eff (ChatCompletionStorage ': es) a
@@ -103,7 +104,7 @@ runChatCompletionStoragePostgres settings eff = do
                 query conn (selectMessagesQuery settings) (Only conversationId)
             liftIO $ close conn
             case result of
-                [] -> throwError $ NoSuchConversation conversationId
+                [] -> throwError $ StorageError $ NoSuchConversation conversationId
                 rows -> pure $ map (\(MessageRow _ _ msgIn createdAt) -> chatMsgFromIn msgIn createdAt) rows
         AppendMessage conversationId msgIn -> liftIO do
             conn <- settings ^. #getConnection

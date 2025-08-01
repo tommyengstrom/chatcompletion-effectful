@@ -4,6 +4,7 @@ module ChatCompletion.Storage.InMemorySpec where
 
 import ChatCompletion.Storage.Effect
 import ChatCompletion.Storage.InMemory
+import ChatCompletion.Error (ChatCompletionError(..), StorageErrorDetails(..))
 import ChatCompletion.Types
 import Control.Lens (folded, reversed, taking, (^..))
 import Data.Generics.Product
@@ -28,8 +29,8 @@ instance Arbitrary ConversationId where
             <*> arbitraryBoundedIntegral
 
 runEffStack
-    :: Eff '[Error ChatCompletionStorageError, IOE] a
-    -> IO (Either ChatCompletionStorageError a)
+    :: Eff '[Error ChatCompletionError, IOE] a
+    -> IO (Either ChatCompletionError a)
 runEffStack = runEff . runErrorNoCallStack
 
 data SomeText = SomeText Text
@@ -44,8 +45,8 @@ spec =
 
 specGeneralized
     :: ( forall a
-          . Eff (ChatCompletionStorage ': '[Error ChatCompletionStorageError, IOE]) a
-         -> Eff '[Error ChatCompletionStorageError, IOE] a
+          . Eff (ChatCompletionStorage ': '[Error ChatCompletionError, IOE]) a
+         -> Eff '[Error ChatCompletionError, IOE] a
        )
     -> Spec
 specGeneralized runStorage = do
@@ -57,7 +58,7 @@ specGeneralized runStorage = do
                         . runEffStack
                         . runStorage
                         $ getConversation convId
-                liftIO $ result `shouldBe` Left (NoSuchConversation convId)
+                liftIO $ result `shouldBe` Left (StorageError $ NoSuchConversation convId)
         it "Can retreive conversation after creating it" $ do
             property $ \(SomeText systemPrompt) -> monadicIO $ do
                 Right conv <- run . runEffStack $ runStorage do
@@ -99,4 +100,4 @@ specGeneralized runStorage = do
                         . runEffStack
                         . runStorage
                         $ getConversation convId
-                liftIO $ result `shouldBe` Left (NoSuchConversation convId)
+                liftIO $ result `shouldBe` Left (StorageError $ NoSuchConversation convId)

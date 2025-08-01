@@ -97,7 +97,7 @@ handleToolLoop tools conversationId accumulated = do
             handleToolLoop tools conversationId (accumulated ++ newMessages)
 
         -- Unexpected response
-        _ -> throwError $ ChatCompletionError $ "Unexpected response type: " <> show response
+        _ -> throwError $ ProviderError $ "Unexpected response type: " <> show response
   where
     toToolDeclaration tool = ToolDeclaration
         { name = tool ^. #name

@@ -12,7 +12,7 @@ import Test.Hspec
 
 runGoogle
     :: TVar (Map ConversationId [ChatMsg])
-    -> Eff '[ChatCompletion, Error ChatCompletionError, ChatCompletionStorage, Error ChatCompletionStorageError, IOE] a
+    -> Eff '[ChatCompletion, ChatCompletionStorage, Error ChatCompletionError, IOE] a
     -> IO a
 runGoogle tvar action = do
     apiKey <- maybe
@@ -23,7 +23,6 @@ runGoogle tvar action = do
     runEff
         $ runErrorNoCallStackWith (error . show)
         $ runChatCompletionStorageInMemory tvar
-        $ runErrorNoCallStackWith (error . show)
         $ runChatCompletionGoogle settings
         $ action
 

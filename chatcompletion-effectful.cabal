@@ -27,6 +27,7 @@ library
   exposed-modules:
       ChatCompletion
       ChatCompletion.Effect
+      ChatCompletion.Error
       ChatCompletion.PostgresLogger
       ChatCompletion.Providers.Google
       ChatCompletion.Providers.Google.API
@@ -80,6 +81,7 @@ library
     , http-api-data
     , http-client
     , http-client-tls
+    , http-types
     , lens
     , openai
     , openapi3
