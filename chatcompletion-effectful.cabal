@@ -87,6 +87,7 @@ library
     , openapi3
     , postgresql-simple
     , relude
+    , resource-pool
     , servant
     , servant-client
     , text
@@ -169,6 +170,7 @@ test-suite chatcompletion-effectful-integration-test
       ChatCompletion.Provider.GoogleSpec
       ChatCompletion.PostgresLoggerSpec
       ChatCompletion.PostgresSpec
+      ChatCompletion.PostgresPoolSpec
       ChatCompletion.Storage.InMemorySpec
   hs-source-dirs:
       integration-test

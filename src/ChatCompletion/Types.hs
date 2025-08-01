@@ -30,7 +30,6 @@ newtype ToolCallId = ToolCallId Text
     deriving stock (Show, Eq, Ord, Generic)
     deriving newtype (FromJSON, ToJSON, ToSchema)
 
-
 newtype UIComponent = UIComponent Value
     deriving stock (Show, Eq, Generic)
     deriving newtype (FromJSON, ToJSON)
@@ -104,9 +103,12 @@ data ToolDeclaration = ToolDeclaration
 -- | Represents a tool/function call made by the LLM
 data ToolCall
     = ToolCall
-    { toolCallId :: ToolCallId      -- ^ Unique identifier for this tool call
-    , toolName :: ToolName          -- ^ Name of the tool to invoke
-    , toolArgs :: Map Text Value    -- ^ Arguments as key-value pairs
+    { toolCallId :: ToolCallId
+    -- ^ Unique identifier for this tool call
+    , toolName :: ToolName
+    -- ^ Name of the tool to invoke
+    , toolArgs :: Map Text Value
+    -- ^ Arguments as key-value pairs
     }
     deriving stock (Show, Eq, Generic)
     deriving anyclass (FromJSON, ToJSON)
@@ -114,17 +116,22 @@ data ToolCall
 instance ToSchema ToolCall where
     declareNamedSchema _ = do
         textSchema <- declareSchemaRef (Proxy @Text)
-        return $ NamedSchema (Just "ToolCall") $ mempty
-            & type_ ?~ OpenApiObject
-            & properties .~
-                [ ("toolCallId", textSchema)
-                , ("toolName", textSchema)
-                , ("toolArgs", Inline $ mempty
+        return $
+            NamedSchema (Just "ToolCall") $
+                mempty
                     & type_ ?~ OpenApiObject
-                    & additionalProperties ?~ AdditionalPropertiesAllowed True
-                  )
-                ]
-            & required .~ ["toolCallId", "toolName", "toolArgs"]
+                    & properties
+                        .~ [ ("toolCallId", textSchema)
+                           , ("toolName", textSchema)
+                           ,
+                               ( "toolArgs"
+                               , Inline $
+                                    mempty
+                                        & type_ ?~ OpenApiObject
+                                        & additionalProperties ?~ AdditionalPropertiesAllowed True
+                               )
+                           ]
+                    & required .~ ["toolCallId", "toolName", "toolArgs"]
 
 data ToolResponse
     = ToolResponse

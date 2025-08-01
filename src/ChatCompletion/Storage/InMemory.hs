@@ -1,8 +1,9 @@
 {-# LANGUAGE RecordWildCards #-}
+
 module ChatCompletion.Storage.InMemory where
 
+import ChatCompletion.Error (ChatCompletionError (..), StorageErrorDetails (..))
 import ChatCompletion.Storage.Effect
-import ChatCompletion.Error (ChatCompletionError(..), StorageErrorDetails(..))
 import ChatCompletion.Types
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
@@ -47,13 +48,11 @@ runChatCompletionStorageInMemory tvar = interpret \_ -> \case
         pure $ Map.keys conversations
 
 toChatMsg :: IOE :> es => ChatMsgIn -> Eff es ChatMsg
-toChatMsg msgIn  = do
+toChatMsg msgIn = do
     createdAt <- liftIO getCurrentTime
     pure case msgIn of
-        UserMsgIn {..}  -> UserMsg { ..}
-        SystemMsgIn {..} -> SystemMsg { ..}
-        AssistantMsgIn {..} -> AssistantMsg { ..}
-        ToolCallMsgIn {..} -> ToolCallMsg { ..}
-        ToolCallResponseMsgIn {..} -> ToolCallResponseMsg {..}
-
-
+        UserMsgIn{..} -> UserMsg{..}
+        SystemMsgIn{..} -> SystemMsg{..}
+        AssistantMsgIn{..} -> AssistantMsg{..}
+        ToolCallMsgIn{..} -> ToolCallMsg{..}
+        ToolCallResponseMsgIn{..} -> ToolCallResponseMsg{..}

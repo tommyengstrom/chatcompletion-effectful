@@ -29,10 +29,10 @@ respondWithTools
     :: ChatCompletionStorage :> es
     => ChatCompletion :> es
     => Error ChatCompletionError :> es
-    => [ToolDef es]  -- Tools available for this conversation
+    => [ToolDef es] -- Tools available for this conversation
     -> ConversationId
     -> Text
-    -> Eff es [ChatMsg]  -- Returns all new messages (assistant responses and tool calls)
+    -> Eff es [ChatMsg] -- Returns all new messages (assistant responses and tool calls)
 respondWithTools tools conversationId content = do
     -- Add the user message
     appendUserMessage conversationId content
@@ -40,7 +40,7 @@ respondWithTools tools conversationId content = do
     -- Get response and handle any tool calls
     handleToolLoop tools conversationId []
 
--- | Execute tool calls and return the responses  
+-- | Execute tool calls and return the responses
 executeToolCalls
     :: [ToolDef es]
     -> [ToolCall]
@@ -48,23 +48,28 @@ executeToolCalls
 executeToolCalls tools toolCalls = do
     forM toolCalls $ \tc -> do
         response <- case find (\t -> t ^. #name == tc ^. #toolName) tools of
-            Nothing -> pure $ ToolResponse
-                { modelResponse = "Tool not found: " <> tc ^. #toolName
-                , localResponse = []
-                }
+            Nothing ->
+                pure
+                    $ ToolResponse
+                        { modelResponse = "Tool not found: " <> tc ^. #toolName
+                        , localResponse = []
+                        }
             Just tool -> do
                 let args = Object (KM.fromMap (Map.mapKeys fromText (tc ^. #toolArgs)))
                 result <- tool ^. #executeFunction $ args
                 case result of
                     Right resp -> pure resp
-                    Left err -> pure $ ToolResponse
-                        { modelResponse = "Tool error: " <> Text.pack err
-                        , localResponse = []
-                        }
-        pure $ ToolCallResponseMsgIn
-            { toolCallId = tc ^. #toolCallId
-            , toolResponse = response
-            }
+                    Left err ->
+                        pure
+                            $ ToolResponse
+                                { modelResponse = "Tool error: " <> Text.pack err
+                                , localResponse = []
+                                }
+        pure
+            $ ToolCallResponseMsgIn
+                { toolCallId = tc ^. #toolCallId
+                , toolResponse = response
+                }
 
 -- | Internal helper to handle the tool execution loop
 handleToolLoop
@@ -73,7 +78,7 @@ handleToolLoop
     => Error ChatCompletionError :> es
     => [ToolDef es]
     -> ConversationId
-    -> [ChatMsg]  -- Accumulated responses
+    -> [ChatMsg] -- Accumulated responses
     -> Eff es [ChatMsg]
 handleToolLoop tools conversationId accumulated = do
     -- Get conversation and send to LLM
@@ -85,7 +90,6 @@ handleToolLoop tools conversationId accumulated = do
     case response of
         -- Assistant message - we're done
         AssistantMsg{} -> pure (accumulated ++ [response])
-
         -- Tool calls - execute them and continue
         ToolCallMsg{toolCalls} -> do
             toolResponsesIn <- executeToolCalls tools toolCalls
@@ -99,12 +103,13 @@ handleToolLoop tools conversationId accumulated = do
         -- Unexpected response
         _ -> throwError $ ProviderError $ "Unexpected response type: " <> show response
   where
-    toToolDeclaration tool = ToolDeclaration
-        { name = tool ^. #name
-        , description = tool ^. #description
-        , parameterSchema = tool ^. #parameterSchema
-        }
-    
+    toToolDeclaration tool =
+        ToolDeclaration
+            { name = tool ^. #name
+            , description = tool ^. #description
+            , parameterSchema = tool ^. #parameterSchema
+            }
+
     chatMsgToIn :: ChatMsg -> ChatMsgIn
     chatMsgToIn = \case
         SystemMsg content _ -> SystemMsgIn content

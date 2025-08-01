@@ -16,8 +16,8 @@ import Test.Hspec
 specWithProvider
     :: ( forall a
           . TVar (Map ConversationId [ChatMsg])
-          -> Eff '[ChatCompletion, ChatCompletionStorage, Error ChatCompletionError, IOE] a
-          -> IO a
+         -> Eff '[ChatCompletion, ChatCompletionStorage, Error ChatCompletionError, IOE] a
+         -> IO a
        )
     -> Spec
 specWithProvider runProvider = do
@@ -36,13 +36,15 @@ specWithProvider runProvider = do
             conv <- getConversation convId
             pure (resp, conv)
         response `shouldSatisfy` \case
-            AssistantMsg t _ -> T.elem '4' t  -- More lenient check for different providers
+            AssistantMsg t _ -> T.elem '4' t -- More lenient check for different providers
             _ -> False
         conv `shouldSatisfy` (== 3) . length
 
     it "Tool call is correctly triggered" $ do
         response <- runProvider tvar $ do
-            convId <- createConversation "You are the users assistant. When asked about contacts or phone numbers, use the available tools to find the information."
+            convId <-
+                createConversation
+                    "You are the users assistant. When asked about contacts or phone numbers, use the available tools to find the information."
             msgs <- respondWithTools [listContacts] convId "What is my friend John's last name?"
             pure msgs
         response
@@ -54,8 +56,11 @@ specWithProvider runProvider = do
 
     it "Resolves multiple tool calls" $ do
         response <- runProvider tvar $ do
-            convId <- createConversation "You are the users assistant. When asked about contacts or phone numbers, use the available tools to find the information."
-            msgs <- respondWithTools [listContacts, showPhoneNumber] convId "What is John's phone number?"
+            convId <-
+                createConversation
+                    "You are the users assistant. When asked about contacts or phone numbers, use the available tools to find the information."
+            msgs <-
+                respondWithTools [listContacts, showPhoneNumber] convId "What is John's phone number?"
             pure msgs
         response
             `shouldSatisfy` any
@@ -75,7 +80,7 @@ specWithProvider runProvider = do
                     AssistantMsg{content} -> T.isInfixOf "123-456-7890" content
                     _ -> False
                 )
-        response `shouldSatisfy` (>= 3) . length  -- At least 3 messages
+        response `shouldSatisfy` (>= 3) . length -- At least 3 messages
         (response ^.. folded . _Ctor @"ToolCallMsg") `shouldSatisfy` (>= 1) . length
         (response ^.. folded . _Ctor @"ToolCallResponseMsg") `shouldSatisfy` (>= 1) . length
         (response ^.. folded . _Ctor @"AssistantMsg") `shouldSatisfy` (>= 1) . length
