@@ -1,13 +1,17 @@
 {-# LANGUAGE RecordWildCards #-}
 
-module ChatCompletion.OpenAI where
+module ChatCompletion.Providers.OpenAI where
 
 import ChatCompletion.Effect
 import ChatCompletion.Types
 import Control.Lens
+import Data.Aeson
+import Data.Aeson.Key qualified as Key
+import Data.Aeson.KeyMap qualified as KM
 import Data.Aeson.Text (encodeToLazyText)
 import Data.Generics.Labels ()
 import Data.Generics.Product
+import Data.Map qualified as Map
 import Data.Text.Lazy qualified as TL
 import Data.Time
 import Data.Vector (Vector)
@@ -163,7 +167,7 @@ toOpenAIMessage msg = case msg of
             , function =
                 OpenAiTC.Function
                     { name = tc ^. #toolName
-                    , arguments = tc ^. #toolArgs . typed
+                    , arguments = TL.toStrict $ encodeToLazyText $ Object $ KM.fromMap $ Map.mapKeys Key.fromText (tc ^. #toolArgs)
                     }
             }
 
@@ -190,7 +194,9 @@ fromOpenAIMessage now = \case
                         $ ToolCall
                             { toolCallId = tc ^. #id . to ToolCallId
                             , toolName = tc ^. #function . #name
-                            , toolArgs = tc ^. #function . #arguments . to ToolArgs
+                            , toolArgs = case eitherDecodeStrictText (tc ^. #function . #arguments) of
+                                Right (Object km) -> Map.mapKeys Key.toText (KM.toMap km)
+                                _ -> mempty
                             }
                 , createdAt = now
                 }

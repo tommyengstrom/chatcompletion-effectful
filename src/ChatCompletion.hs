@@ -4,9 +4,11 @@ import ChatCompletion.Effect as X
 import ChatCompletion.Storage.Effect as X
 import ChatCompletion.Tool as X
 import ChatCompletion.Types as X
-import Control.Lens ((^.), to)
+import Control.Lens ((^.))
 import Data.Aeson
-import Data.Generics.Product (typed)
+import Data.Aeson.Key (fromText)
+import Data.Aeson.KeyMap qualified as KM
+import Data.Map qualified as Map
 import Data.Text qualified as Text
 import Effectful
 import Effectful.Error.Static
@@ -51,9 +53,7 @@ executeToolCalls tools toolCalls = do
                 , localResponse = []
                 }
             Just tool -> do
-                let args = case tc ^. #toolArgs . typed @Text . to eitherDecodeStrictText of
-                        Right v -> v
-                        Left _ -> Null
+                let args = Object (KM.fromMap (Map.mapKeys fromText (tc ^. #toolArgs)))
                 result <- tool ^. #executeFunction $ args
                 case result of
                     Right resp -> pure resp
