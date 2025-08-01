@@ -24,9 +24,8 @@ runChatApp = do
     tvar <- newTVarIO mempty
 
     runEff
-        $ runErrorNoCallStackWith @ChatCompletionStorageError (error . show)
-        $ runChatCompletionStorageInMemory tvar
         $ runErrorNoCallStackWith @ChatCompletionError (error . show)
+        $ runChatCompletionStorageInMemory tvar
         $ runChatCompletionOpenAi settings
         $ do
             putStrLn "=== Dynamic Tool Example ==="

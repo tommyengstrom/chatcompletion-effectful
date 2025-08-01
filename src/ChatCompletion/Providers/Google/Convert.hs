@@ -111,11 +111,10 @@ fromGeminiContent now content = case content ^. #role of
                     { toolCalls = zipWith convertFunctionCallWithIndex [1..] functionCalls
                     , createdAt = now
                     }
-        _ -> throwError $ ChatCompletionError "Unexpected model content structure"
+        _ -> throwError $ ProviderError "Unexpected model content structure"
     _ ->
-        throwError $
-            ChatCompletionError $
-                "Unexpected role in response: " <> T.unpack (content ^. #role)
+        throwError $ ProviderError $
+                "Unexpected role in response: " <> content ^. #role
   where
     isFunctionCall (GeminiFunctionCallPart _) = True
     isFunctionCall _ = False

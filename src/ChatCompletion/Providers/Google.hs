@@ -84,7 +84,7 @@ runChatCompletionGoogle settings es = do
     manager <- liftIO newTlsManager
     let baseUrl' = parseBaseUrl $ T.unpack (settings ^. #baseUrl)
     case baseUrl' of
-        Left err -> throwError $ ChatCompletionError $ "Invalid base URL: " <> show err
+        Left err -> throwError $ ProviderError $ "Invalid base URL: " <> show err
         Right url -> do
             let clientEnv = mkClientEnv manager url
             let generateContent = client geminiAPI
@@ -103,7 +103,7 @@ runChatCompletionGoogle settings es = do
     adapt env m = do
         result <- liftIO $ runClientM m env
         case result of
-            Left err -> throwError . ChatCompletionError $ "Gemini API error: " <> show err
+            Left err -> throwError $ fromServantError err
             Right x -> pure x
 
     sendMessagesToGemini
@@ -135,7 +135,7 @@ runChatCompletionGoogle settings es = do
         liftIO $ (settings ^. #responseLogger) (ConversationId nil) response
 
         case response ^? #candidates . taking 1 folded . #content of
-            Nothing -> throwError $ ChatCompletionError "No content in Gemini response"
+            Nothing -> throwError $ ProviderError "No content in Gemini response"
             Just geminiContent -> do
                 now <- liftIO getCurrentTime
                 fromGeminiContent now geminiContent

@@ -12,7 +12,7 @@ import Test.Hspec
 
 runOpenAI
     :: TVar (Map ConversationId [ChatMsg])
-    -> Eff '[ChatCompletion, Error ChatCompletionError, ChatCompletionStorage, Error ChatCompletionStorageError, IOE] a
+    -> Eff '[ChatCompletion, ChatCompletionStorage, Error ChatCompletionError, IOE] a
     -> IO a
 runOpenAI tvar action = do
     apiKey <- maybe
@@ -20,10 +20,10 @@ runOpenAI tvar action = do
         (pure . OpenAiApiKey . T.pack)
         =<< lookupEnv "OPENAI_API_KEY"
     let settings = defaultOpenAiSettings apiKey
+    -- The handlers expect this effect order
     runEff
         $ runErrorNoCallStackWith (error . show)
         $ runChatCompletionStorageInMemory tvar
-        $ runErrorNoCallStackWith (error . show)
         $ runChatCompletionOpenAi settings
         $ action
 
