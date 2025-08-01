@@ -2,9 +2,9 @@
 
 module ChatCompletion.Storage.InMemorySpec where
 
+import ChatCompletion.Error (ChatCompletionError (..), StorageErrorDetails (..))
 import ChatCompletion.Storage.Effect
 import ChatCompletion.Storage.InMemory
-import ChatCompletion.Error (ChatCompletionError(..), StorageErrorDetails(..))
 import ChatCompletion.Types
 import Control.Lens (folded, reversed, taking, (^..))
 import Data.Generics.Product

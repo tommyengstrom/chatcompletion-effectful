@@ -29,20 +29,21 @@ runChatApp = do
         $ runChatCompletionOpenAi settings
         $ do
             putStrLn "=== Dynamic Tool Example ==="
-            
+
             -- Create a conversation
-            convId <- createConversation "You are a helpful assistant with access to the user's contacts."
-            
+            convId <-
+                createConversation "You are a helpful assistant with access to the user's contacts."
+
             -- Send a message with tools
             msgs <- respondWithTools myTools convId "What is John's phone number?"
-            
+
             -- Display the conversation
             for_ msgs $ \msg -> case msg of
-                UserMsg content _ -> 
+                UserMsg content _ ->
                     putStrLn $ "User: " <> T.unpack content
-                AssistantMsg content _ -> 
+                AssistantMsg content _ ->
                     putStrLn $ "Assistant: " <> T.unpack content
-                ToolCallMsg calls _ -> 
+                ToolCallMsg calls _ ->
                     for_ calls $ \(ToolCall _ name _) ->
                         putStrLn $ "Tool Call: " <> T.unpack name
                 ToolCallResponseMsg _ (ToolResponse modelResp _) _ ->
@@ -59,10 +60,12 @@ listContactsTool =
     defineToolNoArgument
         "list_contact"
         "List all the contacts of the user."
-        ( pure $ Right $ ToolResponse
-            { modelResponse = "Contacts:\n" <> T.intercalate "\n- " contacts
-            , localResponse = [UIComponent $ toJSON contacts]
-            }
+        ( pure
+            $ Right
+            $ ToolResponse
+                { modelResponse = "Contacts:\n" <> T.intercalate "\n- " contacts
+                , localResponse = [UIComponent $ toJSON contacts]
+                }
         )
   where
     contacts = ["John Snow", "Arya Stark", "Tyrion Lannister"]
@@ -74,14 +77,20 @@ showPhoneNumberTool =
         "show_phone_number"
         "Show the phone number of a contact. Must use full name for lookup."
         ( \case
-            FullName "John Snow" -> pure $ Right $ ToolResponse
-                { modelResponse = "Phone number: 123-456-7890"
-                , localResponse = [UIComponent $ toJSON ("123-456-7890" :: Text)]
-                }
-            FullName n -> pure $ Right $ ToolResponse
-                { modelResponse = "No phone number for contact: " <> n
-                , localResponse = []
-                }
+            FullName "John Snow" ->
+                pure
+                    $ Right
+                    $ ToolResponse
+                        { modelResponse = "Phone number: 123-456-7890"
+                        , localResponse = [UIComponent $ toJSON ("123-456-7890" :: Text)]
+                        }
+            FullName n ->
+                pure
+                    $ Right
+                    $ ToolResponse
+                        { modelResponse = "No phone number for contact: " <> n
+                        , localResponse = []
+                        }
         )
 
 -- | Data type for contact name parameter

@@ -18,7 +18,7 @@
 --
 -- @
 -- import ChatCompletion.Providers.Google
--- 
+--
 -- main = do
 --     apiKey <- GoogleApiKey <$> getEnv "GEMINI_API_KEY"
 --     let settings = defaultGoogleSettings apiKey
@@ -29,15 +29,19 @@
 --             response <- sendMessages [] [UserMsg "Hello!" now]
 --             liftIO $ print response
 -- @
-module ChatCompletion.Providers.Google 
+module ChatCompletion.Providers.Google
     ( -- * Types
       module ChatCompletion.Providers.Google.Types
+
       -- * API
     , module ChatCompletion.Providers.Google.API
+
       -- * Conversions
     , module ChatCompletion.Providers.Google.Convert
+
       -- * Settings
     , defaultGoogleSettings
+
       -- * Effect Handler
     , runChatCompletionGoogle
     ) where
@@ -122,8 +126,8 @@ runChatCompletionGoogle settings es = do
         let modelName = settings ^. #model
         let modelPath = [modelName <> ":generateContent"]
         response <-
-            adapt clientEnv $
-                generateContent
+            adapt clientEnv
+                $ generateContent
                     modelPath
                     (settings ^. #apiKey . typed @Text)
                     GeminiChatRequest

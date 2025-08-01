@@ -25,40 +25,40 @@ toGeminiContent :: ChatMsg -> Maybe GeminiContent
 toGeminiContent msg = case msg of
     SystemMsg{} -> Nothing -- System messages are handled separately via systemInstruction
     UserMsg{content} ->
-        Just $
-            GeminiContent
+        Just
+            $ GeminiContent
                 { parts = V.singleton $ GeminiTextPart content
                 , role = "user"
                 }
     AssistantMsg{content} ->
-        Just $
-            GeminiContent
+        Just
+            $ GeminiContent
                 { parts = V.singleton $ GeminiTextPart content
                 , role = "model"
                 }
     ToolCallMsg{toolCalls} ->
-        Just $
-            GeminiContent
+        Just
+            $ GeminiContent
                 { parts = V.fromList $ fmap translateToolCall toolCalls
                 , role = "model"
                 }
     ToolCallResponseMsg{toolCallId, toolResponse} ->
-        Just $
-            GeminiContent
+        Just
+            $ GeminiContent
                 { parts =
-                    V.singleton $
-                        GeminiFunctionResponsePart $
-                            GeminiFunctionResponse
-                                { name = toolCallId ^. typed @Text
-                                , response = object ["result" .= (toolResponse ^. #modelResponse)]
-                                }
+                    V.singleton
+                        $ GeminiFunctionResponsePart
+                        $ GeminiFunctionResponse
+                            { name = toolCallId ^. typed @Text
+                            , response = object ["result" .= (toolResponse ^. #modelResponse)]
+                            }
                 , role = "user"
                 }
   where
     translateToolCall :: ToolCall -> GeminiPart
     translateToolCall tc =
-        GeminiFunctionCallPart $
-            GeminiFunctionCall
+        GeminiFunctionCallPart
+            $ GeminiFunctionCall
                 { name = tc ^. #toolName
                 , args = Object (KM.fromMap (Map.mapKeys fromText (tc ^. #toolArgs)))
                 }
@@ -84,8 +84,8 @@ mkToolFromDeclaration t =
 extractSystemMessage :: [ChatMsg] -> (Maybe GeminiContent, [ChatMsg])
 extractSystemMessage msgs = case msgs of
     (SystemMsg content _ : rest) ->
-        ( Just $
-            GeminiContent
+        ( Just
+            $ GeminiContent
                 { parts = V.singleton $ GeminiTextPart content
                 , role = "user" -- Gemini expects "user" role for system instruction
                 }
@@ -99,22 +99,25 @@ fromGeminiContent
 fromGeminiContent now content = case content ^. #role of
     "model" -> case V.toList (content ^. #parts) of
         [GeminiTextPart text] ->
-            pure $
-                AssistantMsg
+            pure
+                $ AssistantMsg
                     { content = text
                     , createdAt = now
                     }
         partsList | any isFunctionCall partsList -> do
             let functionCalls = [fc | GeminiFunctionCallPart fc <- partsList]
-            pure $
-                ToolCallMsg
-                    { toolCalls = zipWith convertFunctionCallWithIndex [1..] functionCalls
+            pure
+                $ ToolCallMsg
+                    { toolCalls = zipWith convertFunctionCallWithIndex [1 ..] functionCalls
                     , createdAt = now
                     }
         _ -> throwError $ ProviderError "Unexpected model content structure"
     _ ->
-        throwError $ ProviderError $
-                "Unexpected role in response: " <> content ^. #role
+        throwError
+            $ ProviderError
+            $ "Unexpected role in response: "
+            <> content
+            ^. #role
   where
     isFunctionCall (GeminiFunctionCallPart _) = True
     isFunctionCall _ = False

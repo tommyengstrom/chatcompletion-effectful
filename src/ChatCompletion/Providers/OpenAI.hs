@@ -97,7 +97,7 @@ runChatCompletionOpenAi settings es = do
         -> [ToolDeclaration]
         -> [ChatMsg]
         -> Eff es ChatMsg
-    sendMessagesToOpenAI createChatCompletion  tools' messages = do
+    sendMessagesToOpenAI createChatCompletion tools' messages = do
         let tools = fmap mkToolFromDeclaration tools'
         response <-
             adapt
@@ -106,14 +106,16 @@ runChatCompletionOpenAi settings es = do
                 $ _CreateChatCompletion
                     { messages = V.fromList $ toOpenAIMessage <$> messages
                     , model = settings ^. #model . to Model
-                    , tools = if null tools
-                        then Nothing
-                        else Just (V.fromList tools)
+                    , tools =
+                        if null tools
+                            then Nothing
+                            else Just (V.fromList tools)
                     }
         case response of
             Left err ->
-                throwError . NetworkError $
-                    NetworkErrorDetails
+                throwError
+                    . NetworkError
+                    $ NetworkErrorDetails
                         { operation = "OpenAI API call"
                         , cause = toText $ displayException err
                         }
@@ -168,7 +170,12 @@ toOpenAIMessage msg = case msg of
             , function =
                 OpenAiTC.Function
                     { name = tc ^. #toolName
-                    , arguments = TL.toStrict $ encodeToLazyText $ Object $ KM.fromMap $ Map.mapKeys Key.fromText (tc ^. #toolArgs)
+                    , arguments =
+                        TL.toStrict
+                            $ encodeToLazyText
+                            $ Object
+                            $ KM.fromMap
+                            $ Map.mapKeys Key.fromText (tc ^. #toolArgs)
                     }
             }
 

@@ -15,10 +15,11 @@ runOpenAI
     -> Eff '[ChatCompletion, ChatCompletionStorage, Error ChatCompletionError, IOE] a
     -> IO a
 runOpenAI tvar action = do
-    apiKey <- maybe
-        (error "OPENAI_API_KEY not set in environment")
-        (pure . OpenAiApiKey . T.pack)
-        =<< lookupEnv "OPENAI_API_KEY"
+    apiKey <-
+        maybe
+            (error "OPENAI_API_KEY not set in environment")
+            (pure . OpenAiApiKey . T.pack)
+            =<< lookupEnv "OPENAI_API_KEY"
     let settings = defaultOpenAiSettings apiKey
     -- The handlers expect this effect order
     runEff
@@ -31,7 +32,7 @@ spec :: Spec
 spec = describe "ChatCompletion Provider - OpenAI" $ do
     -- Run common tests
     specWithProvider runOpenAI
-    
+
     -- OpenAI-specific tests can be added here
     describe "OpenAI-specific features" $ do
         it "placeholder for OpenAI-specific tests" $ do

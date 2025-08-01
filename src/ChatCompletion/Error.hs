@@ -4,20 +4,20 @@
 
 module ChatCompletion.Error where
 
+import ChatCompletion.Types (ConversationId)
+import Control.Concurrent (threadDelay)
+import Control.Lens hiding ((.=))
 import Data.Aeson (FromJSON, ToJSON)
+import Data.Generics.Labels ()
+import Data.List (lookup)
 import Data.Time (NominalDiffTime)
+import Network.HTTP.Types.Status (statusCode)
 import Relude
 import Servant.Client
     ( ClientError (..)
     , Response
     , ResponseF (..)
     )
-import ChatCompletion.Types (ConversationId)
-import Control.Lens hiding ((.=))
-import Data.Generics.Labels ()
-import Control.Concurrent (threadDelay)
-import Data.List (lookup)
-import Network.HTTP.Types.Status (statusCode)
 
 data ChatCompletionError
     = HttpError HttpErrorDetails
@@ -92,38 +92,40 @@ fromServantError = \case
             body = decodeUtf8 $ responseBody response
          in case status of
                 429 ->
-                    RateLimitError $
-                        RateLimitDetails
+                    RateLimitError
+                        $ RateLimitDetails
                             { retryAfter = parseRetryAfter response
                             , message = body
                             }
-                s | s >= 400 && s < 500 ->
-                    HttpError $
-                        HttpErrorDetails
-                            { statusCode = s
-                            , message = body
-                            , responseBody = Just body
-                            , isRetryable = False
-                            }
-                s | s >= 500 ->
-                    HttpError $
-                        HttpErrorDetails
-                            { statusCode = s
-                            , message = body
-                            , responseBody = Just body
-                            , isRetryable = True
-                            }
+                s
+                    | s >= 400 && s < 500 ->
+                        HttpError
+                            $ HttpErrorDetails
+                                { statusCode = s
+                                , message = body
+                                , responseBody = Just body
+                                , isRetryable = False
+                                }
+                s
+                    | s >= 500 ->
+                        HttpError
+                            $ HttpErrorDetails
+                                { statusCode = s
+                                , message = body
+                                , responseBody = Just body
+                                , isRetryable = True
+                                }
                 _ -> ProviderError $ "Unexpected status: " <> show status
     DecodeFailure msg _ ->
-        ParseError $
-            ParseErrorDetails
+        ParseError
+            $ ParseErrorDetails
                 { expected = "Valid JSON response"
                 , actual = msg
                 , parseError = msg
                 }
     ConnectionError exc ->
-        NetworkError $
-            NetworkErrorDetails
+        NetworkError
+            $ NetworkErrorDetails
                 { operation = "HTTP request"
                 , cause = toText $ displayException exc
                 }
@@ -147,10 +149,12 @@ getRetryDelay err config attempt = case err of
     _ -> defaultDelay
   where
     defaultDelay =
-        min (config ^. #maxDelay) $
-            (config ^. #initialDelay) * fromRational (toRational ((config ^. #backoffMultiplier) ^ attempt))
+        min (config ^. #maxDelay)
+            $ (config ^. #initialDelay)
+            * fromRational (toRational ((config ^. #backoffMultiplier) ^ attempt))
 
-withRetry :: RetryConfig -> IO (Either ChatCompletionError a) -> IO (Either ChatCompletionError a)
+withRetry
+    :: RetryConfig -> IO (Either ChatCompletionError a) -> IO (Either ChatCompletionError a)
 withRetry config action = go 0
   where
     go attempt = do
