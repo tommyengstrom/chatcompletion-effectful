@@ -52,9 +52,11 @@ import ChatCompletion.Providers.Google.Convert
 import ChatCompletion.Providers.Google.Types
 import ChatCompletion.Types
 import Control.Lens hiding ((.=))
+import Data.Aeson.Text (encodeToLazyText)
 import Data.Generics.Labels ()
 import Data.Generics.Product
 import Data.Text qualified as T
+import Data.Text.Lazy qualified as TL
 import Data.Time
 import Data.UUID (nil)
 import Data.Vector qualified as V
@@ -118,24 +120,62 @@ runChatCompletionGoogle settings es = do
         -> [ChatMsg]
         -> Eff es ChatMsg
     sendMessagesToGemini generateContent clientEnv responseFormat tools' messages = do
+        let hasTools = not (null tools')
         let tools =
-                if null tools'
-                    then Nothing
-                    else Just $ V.singleton $ GeminiTool $ V.fromList $ fmap mkToolFromDeclaration tools'
-        let (systemInstruction, otherMessages) = extractSystemMessage messages
+                if hasTools
+                    then Just $ V.singleton $ GeminiTool $ V.fromList $ fmap mkToolFromDeclaration tools'
+                    else Nothing
+        
+        let (originalSystemInstruction, otherMessages) = extractSystemMessage messages
+        
+        -- When we have both tools and structured output, use prompt instructions
+        -- instead of generationConfig (which Google doesn't support with tools)
+        let systemInstruction = case (hasTools, responseFormat, originalSystemInstruction) of
+                (True, JsonValue, Just sysContent) ->
+                    Just $ sysContent 
+                        { parts = (sysContent ^. #parts) <> V.singleton (GeminiTextPart 
+                            "\n\nCRITICAL REQUIREMENT: You MUST respond with valid JSON only. Do not include any text outside the JSON object. Do not wrap in markdown code blocks.")
+                        }
+                (True, JsonValue, Nothing) ->
+                    Just $ GeminiContent 
+                        { role = "system"
+                        , parts = V.singleton (GeminiTextPart 
+                            "CRITICAL REQUIREMENT: You MUST respond with valid JSON only. Do not include any text outside the JSON object. Do not wrap in markdown code blocks.")
+                        }
+                (True, JsonSchema schema, Just sysContent) ->
+                    Just $ sysContent 
+                        { parts = (sysContent ^. #parts) <> V.singleton (GeminiTextPart $ 
+                            "\n\nCRITICAL REQUIREMENT: You MUST respond with valid JSON matching this schema. Do not include any text outside the JSON. Do not wrap in markdown code blocks.\nSchema:\n" <> 
+                            TL.toStrict (encodeToLazyText schema))
+                        }
+                (True, JsonSchema schema, Nothing) ->
+                    Just $ GeminiContent 
+                        { role = "system"
+                        , parts = V.singleton (GeminiTextPart $ 
+                            "CRITICAL REQUIREMENT: You MUST respond with valid JSON matching this schema. Do not include any text outside the JSON. Do not wrap in markdown code blocks.\nSchema:\n" <> 
+                            TL.toStrict (encodeToLazyText schema))
+                        }
+                _ -> originalSystemInstruction
+        
         let contents = V.fromList $ mapMaybe toGeminiContent otherMessages
         let modelName = settings ^. #model
         let modelPath = [modelName <> ":generateContent"]
-        let generationConfig = case responseFormat of
-                Unstructured -> Nothing
-                JsonValue -> Just $ GeminiGenerationConfig 
-                    { responseMimeType = Just "application/json"
-                    , responseSchema = Nothing
-                    }
-                JsonSchema schema -> Just $ GeminiGenerationConfig
-                    { responseMimeType = Just "application/json"
-                    , responseSchema = Just schema
-                    }
+        
+        -- Only use generationConfig when we don't have tools
+        -- (Google doesn't support both simultaneously)
+        let generationConfig = 
+                if hasTools
+                then Nothing  -- Can't use with tools, rely on prompt instructions instead
+                else case responseFormat of
+                    Unstructured -> Nothing
+                    JsonValue -> Just $ GeminiGenerationConfig 
+                        { responseMimeType = Just "application/json"
+                        , responseSchema = Nothing
+                        }
+                    JsonSchema schema -> Just $ GeminiGenerationConfig
+                        { responseMimeType = Just "application/json"
+                        , responseSchema = Just schema
+                        }
         response <-
             adapt clientEnv
                 $ generateContent

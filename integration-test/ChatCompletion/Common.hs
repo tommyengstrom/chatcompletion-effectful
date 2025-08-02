@@ -59,7 +59,7 @@ specWithProvider runProvider = do
         response <- runProvider tvar $ do
             convId <-
                 createConversation
-                    "You are the users assistant. When asked about contacts or phone numbers, use the available tools to find the information."
+                    "You are the users assistant, always trying to help them without first clearifying what they want. When asked about contacts or phone numbers, use the available tools to find the information."
             msgs <-
                 respondWithTools [listContacts, showPhoneNumber] convId "What is John's phone number?"
             pure msgs
@@ -113,11 +113,11 @@ specWithProvider runProvider = do
         it "Combines tools with structured output" $ do
             (msgs, result) <- runProvider tvar $ do
                 convId <- createConversation "You are a helpful assistant. Use tools when needed and provide structured responses."
-                respondWithToolsStructured @ContactInfo [listContacts] convId "Get John's information and return it as structured data."
+                respondWithToolsStructured @ContactInfo [listContacts, showPhoneNumber] convId "Get John's information and return it as structured data."
             result `shouldSatisfy` isRight
             case result of
                 Right (ContactInfo name _) -> do
-                    name `shouldSatisfy` T.isInfixOf "John"
+                   name `shouldSatisfy` T.isInfixOf "John"
                 Left err -> expectationFailure $ "Failed to parse structured response: " <> err
             msgs `shouldSatisfy` any (\case
                 ToolCallMsg{} -> True
@@ -133,7 +133,7 @@ data PersonInfo = PersonInfo
 
 data ContactInfo = ContactInfo
     { name :: Text
-    , role :: Text
+    , phoneNumber :: Text
     }
     deriving stock (Show, Eq, Generic)
     deriving anyclass (FromJSON, ToJSON, ToSchema)
