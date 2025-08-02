@@ -86,14 +86,15 @@ spec = describe "PostgreSQL Connection Pooling" $ do
         it "runChatCompletionStoragePostgres' works with default pool" $ do
             cleanup
             -- For backward compatibility test, we need to use config with our test table
-            let testConfig = PostgresConfig
-                    { connectionString = connectionString
-                    , poolSize = 1
-                    , connectionTimeout = 5
-                    , connectionIdleTime = 60
-                    , poolStripes = 1
-                    , conversationsTable = conversationsTable
-                    }
+            let testConfig =
+                    PostgresConfig
+                        { connectionString = connectionString
+                        , poolSize = 1
+                        , connectionTimeout = 5
+                        , connectionIdleTime = 60
+                        , poolStripes = 1
+                        , conversationsTable = conversationsTable
+                        }
             setupTableWithPool testConfig
 
             -- Test using the backward compatible function with our test table

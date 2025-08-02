@@ -3,6 +3,7 @@ module ChatCompletion.Common where
 import ChatCompletion
 import Control.Lens (folded, (^..))
 import Data.Aeson
+import Data.Aeson.KeyMap (keys)
 import Data.Generics.Sum
 import Data.OpenApi (ToSchema)
 import Data.Text qualified as T
@@ -31,7 +32,7 @@ specWithProvider runProvider = do
                 createConversation "Act exactly as a simple calculator. No extra text, just the answer."
             appendUserMessage convId "2 + 2"
             messages <- getConversation convId
-            resp <- sendMessages [] messages
+            resp <- sendMessages Unstructured [] messages
             appendMessage convId (chatMsgToIn resp)
             conv <- getConversation convId
             pure (resp, conv)
@@ -58,7 +59,7 @@ specWithProvider runProvider = do
         response <- runProvider tvar $ do
             convId <-
                 createConversation
-                    "You are the users assistant. When asked about contacts or phone numbers, use the available tools to find the information."
+                    "You are the users assistant, always trying to help them without first clearifying what they want. When asked about contacts or phone numbers, use the available tools to find the information."
             msgs <-
                 respondWithTools [listContacts, showPhoneNumber] convId "What is John's phone number?"
             pure msgs
@@ -84,6 +85,74 @@ specWithProvider runProvider = do
         (response ^.. folded . _Ctor @"ToolCallMsg") `shouldSatisfy` (>= 1) . length
         (response ^.. folded . _Ctor @"ToolCallResponseMsg") `shouldSatisfy` (>= 1) . length
         (response ^.. folded . _Ctor @"AssistantMsg") `shouldSatisfy` (>= 1) . length
+
+    describe "Structured Output" $ do
+        it "Responds with JSON when requested" $ do
+            (_, jsonResult) <- runProvider tvar $ do
+                convId <- createConversation "You are a helpful assistant. Always provide direct answers."
+                respondWithToolsJson
+                    []
+                    convId
+                    "What is 2+2? Reply with a JSON object containing the field 'answer' with the numeric result."
+            jsonResult `shouldSatisfy` isRight
+            case jsonResult of
+                Right val ->
+                    val `shouldSatisfy` \v ->
+                        case v of
+                            Object obj -> "answer" `elem` keys obj
+                            _ -> False
+                Left _ -> expectationFailure "Expected valid JSON response"
+
+        it "Responds with structured output matching schema" $ do
+            (_, result) <- runProvider tvar $ do
+                convId <-
+                    createConversation "You are a helpful assistant. Provide structured data when requested."
+                respondWithToolsStructured @PersonInfo
+                    []
+                    convId
+                    "Tell me about Albert Einstein. Include his name and approximate age at death."
+            result `shouldSatisfy` isRight
+            case result of
+                Right (PersonInfo name age) -> do
+                    name `shouldSatisfy` T.isInfixOf "Einstein"
+                    age `shouldSatisfy` (> 70)
+                Left err -> expectationFailure $ "Failed to parse structured response: " <> err
+
+        it "Combines tools with structured output" $ do
+            (msgs, result) <- runProvider tvar $ do
+                convId <-
+                    createConversation
+                        "You are a helpful assistant. Use tools when needed and provide structured responses."
+                respondWithToolsStructured @ContactInfo
+                    [listContacts, showPhoneNumber]
+                    convId
+                    "Get John's information and return it as structured data."
+            result `shouldSatisfy` isRight
+            case result of
+                Right (ContactInfo name _) -> do
+                    name `shouldSatisfy` T.isInfixOf "John"
+                Left err -> expectationFailure $ "Failed to parse structured response: " <> err
+            msgs
+                `shouldSatisfy` any
+                    ( \case
+                        ToolCallMsg{} -> True
+                        _ -> False
+                    )
+
+-- Test data types for structured output
+data PersonInfo = PersonInfo
+    { name :: Text
+    , age :: Int
+    }
+    deriving stock (Show, Eq, Generic)
+    deriving anyclass (FromJSON, ToJSON, ToSchema)
+
+data ContactInfo = ContactInfo
+    { name :: Text
+    , phoneNumber :: Text
+    }
+    deriving stock (Show, Eq, Generic)
+    deriving anyclass (FromJSON, ToJSON, ToSchema)
 
 -- Helper tools for testing
 listContacts :: ToolDef es

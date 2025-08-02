@@ -80,10 +80,18 @@ data GeminiFunctionDeclaration = GeminiFunctionDeclaration
     deriving stock (Show, Eq, Generic)
     deriving anyclass (FromJSON, ToJSON)
 
+data GeminiGenerationConfig = GeminiGenerationConfig
+    { responseMimeType :: Maybe Text
+    , responseSchema :: Maybe Value
+    }
+    deriving stock (Show, Eq, Generic)
+    deriving anyclass (FromJSON, ToJSON)
+
 data GeminiChatRequest = GeminiChatRequest
     { contents :: Vector GeminiContent
     , tools :: Maybe (Vector GeminiTool)
     , systemInstruction :: Maybe GeminiContent
+    , generationConfig :: Maybe GeminiGenerationConfig
     }
     deriving stock (Show, Eq, Generic)
     deriving anyclass (FromJSON, ToJSON)

@@ -32,6 +32,7 @@ import OpenAI.V1.Chat.Completions
     , _CreateChatCompletion
     )
 import OpenAI.V1.Models (Model (..))
+import OpenAI.V1.ResponseFormat qualified as RF
 import OpenAI.V1.Tool qualified as OpenAiTool
 import OpenAI.V1.ToolCall qualified as OpenAiTC
 import Relude
@@ -86,18 +87,19 @@ runChatCompletionOpenAi settings es = do
         -> Eff (ChatCompletion ': es) a
         -> Eff es a
     runChatCompletion createChatCompletion = interpret \_ -> \case
-        SendMessages tools messages ->
-            sendMessagesToOpenAI createChatCompletion tools messages
+        SendMessages responseFormat tools messages ->
+            sendMessagesToOpenAI createChatCompletion responseFormat tools messages
 
     adapt :: IO x -> Eff es x
     adapt m = liftIO m `catchAny` \e -> throwError . ProviderError . toText $ displayException e
 
     sendMessagesToOpenAI
         :: (CreateChatCompletion -> IO ChatCompletionObject)
+        -> ResponseFormat
         -> [ToolDeclaration]
         -> [ChatMsg]
         -> Eff es ChatMsg
-    sendMessagesToOpenAI createChatCompletion tools' messages = do
+    sendMessagesToOpenAI createChatCompletion responseFormat tools' messages = do
         let tools = fmap mkToolFromDeclaration tools'
         response <-
             adapt
@@ -110,6 +112,18 @@ runChatCompletionOpenAi settings es = do
                         if null tools
                             then Nothing
                             else Just (V.fromList tools)
+                    , response_format = case responseFormat of
+                        Unstructured -> Nothing
+                        JsonValue -> Just RF.JSON_Object
+                        JsonSchema schema ->
+                            Just
+                                $ RF.JSON_Schema
+                                    RF.JSONSchema
+                                        { description = Nothing
+                                        , name = "response_format"
+                                        , schema = Just schema
+                                        , strict = Nothing
+                                        }
                     }
         case response of
             Left err ->
