@@ -15,6 +15,13 @@ import Prelude
 
 type SystemPrompt = Text
 
+data ResponseFormat
+    = Unstructured
+    | JsonValue
+    | JsonSchema Value
+    deriving stock (Show, Eq, Generic)
+    deriving anyclass (FromJSON, ToJSON)
+
 newtype ConversationId = ConversationId UUID
     deriving stock (Show, Eq, Ord, Generic)
     deriving newtype

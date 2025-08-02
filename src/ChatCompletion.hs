@@ -1,4 +1,11 @@
-module ChatCompletion (module X, appendUserMessage, respondWithTools, executeToolCalls) where
+module ChatCompletion
+    ( module X
+    , appendUserMessage
+    , respondWithTools
+    , executeToolCalls
+    , respondWithToolsStructured
+    , respondWithToolsJson
+    ) where
 
 import ChatCompletion.Effect as X
 import ChatCompletion.Storage.Effect as X
@@ -8,7 +15,9 @@ import Control.Lens ((^.))
 import Data.Aeson
 import Data.Aeson.Key (fromText)
 import Data.Aeson.KeyMap qualified as KM
+import Data.List qualified as L
 import Data.Map qualified as Map
+import Data.OpenApi (ToSchema, toSchema)
 import Data.Text qualified as Text
 import Effectful
 import Effectful.Error.Static
@@ -33,12 +42,71 @@ respondWithTools
     -> ConversationId
     -> Text
     -> Eff es [ChatMsg] -- Returns all new messages (assistant responses and tool calls)
-respondWithTools tools conversationId content = do
+respondWithTools tools conversationId content =
+    respondWithTools' Unstructured tools conversationId content
+
+-- | Send a user message and handle any tool calls automatically
+respondWithToolsStructured
+    :: forall a es
+     . ToSchema a
+    => FromJSON a
+    => ChatCompletionStorage :> es
+    => ChatCompletion :> es
+    => Error ChatCompletionError :> es
+    => [ToolDef es] -- Tools available for this conversation
+    -> ConversationId
+    -> Text
+    -> Eff es ([ChatMsg], Either String a)
+respondWithToolsStructured tools conversationId msg = do
+    msgs <-
+        respondWithTools' (JsonSchema . toJSON . toSchema $ Proxy @a) tools conversationId msg
+    let assistantContents :: [Text]
+        assistantContents = [content | AssistantMsg{content} <- msgs]
+
+        parsedContents :: Either String a
+        parsedContents = case L.reverse assistantContents of
+            [] -> Left "No assistant response found"
+            (lastContent : _) -> eitherDecodeStrictText lastContent
+    pure (msgs, parsedContents)
+
+respondWithToolsJson
+    :: forall a es
+     . FromJSON a
+    => ChatCompletionStorage :> es
+    => ChatCompletion :> es
+    => Error ChatCompletionError :> es
+    => [ToolDef es] -- Tools available for this conversation
+    -> ConversationId
+    -> Text
+    -> Eff es ([ChatMsg], Either String Value)
+respondWithToolsJson tools conversationId msg = do
+    msgs <-
+        respondWithTools' JsonValue tools conversationId msg
+    let assistantContents :: [Text]
+        assistantContents = [content | AssistantMsg{content} <- msgs]
+
+        parsedContents :: Either String Value
+        parsedContents = case L.reverse assistantContents of
+            [] -> Left "No assistant response found"
+            (lastContent : _) -> eitherDecodeStrictText lastContent
+    pure (msgs, parsedContents)
+
+-- | Send a user message and handle any tool calls automatically
+respondWithTools'
+    :: ChatCompletionStorage :> es
+    => ChatCompletion :> es
+    => Error ChatCompletionError :> es
+    => ResponseFormat
+    -> [ToolDef es] -- Tools available for this conversation
+    -> ConversationId
+    -> Text
+    -> Eff es [ChatMsg] -- Returns all new messages (assistant responses and tool calls)
+respondWithTools' responseFormat tools conversationId content = do
     -- Add the user message
     appendUserMessage conversationId content
 
     -- Get response and handle any tool calls
-    handleToolLoop tools conversationId []
+    handleToolLoop responseFormat tools conversationId []
 
 -- | Execute tool calls and return the responses
 executeToolCalls
@@ -49,8 +117,8 @@ executeToolCalls tools toolCalls = do
     forM toolCalls $ \tc -> do
         response <- case find (\t -> t ^. #name == tc ^. #toolName) tools of
             Nothing ->
-                pure
-                    $ ToolResponse
+                pure $
+                    ToolResponse
                         { modelResponse = "Tool not found: " <> tc ^. #toolName
                         , localResponse = []
                         }
@@ -60,13 +128,13 @@ executeToolCalls tools toolCalls = do
                 case result of
                     Right resp -> pure resp
                     Left err ->
-                        pure
-                            $ ToolResponse
+                        pure $
+                            ToolResponse
                                 { modelResponse = "Tool error: " <> Text.pack err
                                 , localResponse = []
                                 }
-        pure
-            $ ToolCallResponseMsgIn
+        pure $
+            ToolCallResponseMsgIn
                 { toolCallId = tc ^. #toolCallId
                 , toolResponse = response
                 }
@@ -76,20 +144,21 @@ handleToolLoop
     :: ChatCompletionStorage :> es
     => ChatCompletion :> es
     => Error ChatCompletionError :> es
-    => [ToolDef es]
+    => ResponseFormat
+    -> [ToolDef es]
     -> ConversationId
     -> [ChatMsg] -- Accumulated responses
     -> Eff es [ChatMsg]
-handleToolLoop tools conversationId accumulated = do
+handleToolLoop responseFormat tools conversationId accumulated = do
     -- Get conversation and send to LLM
     conv <- getConversation conversationId
 
-    response <- sendMessages (toToolDeclaration <$> tools) conv
+    response <- sendMessages responseFormat (toToolDeclaration <$> tools) conv
     appendMessage conversationId (chatMsgToIn response)
 
     case response of
         -- Assistant message - we're done
-        AssistantMsg{} -> pure (accumulated ++ [response])
+        AssistantMsg{} -> pure (accumulated <> [response])
         -- Tool calls - execute them and continue
         ToolCallMsg{toolCalls} -> do
             toolResponsesIn <- executeToolCalls tools toolCalls
@@ -98,7 +167,7 @@ handleToolLoop tools conversationId accumulated = do
             -- Get the updated conversation to get messages with timestamps
             updatedConv <- getConversation conversationId
             let newMessages = drop (length conv) updatedConv
-            handleToolLoop tools conversationId (accumulated ++ newMessages)
+            handleToolLoop responseFormat tools conversationId (accumulated <> newMessages)
 
         -- Unexpected response
         _ -> throwError $ ProviderError $ "Unexpected response type: " <> show response
