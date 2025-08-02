@@ -26,16 +26,19 @@ cleanMarkdownJson :: Text -> Text
 cleanMarkdownJson t =
     let stripped = T.strip t
         -- Remove ```json prefix
-        withoutPrefix = if "```json" `T.isPrefixOf` stripped
-                       then T.drop 7 stripped
-                       else if "```" `T.isPrefixOf` stripped
-                            then T.drop 3 stripped
-                            else stripped
-        -- Remove ``` suffix  
-        withoutSuffix = if "```" `T.isSuffixOf` T.strip withoutPrefix
-                       then T.dropEnd 3 (T.strip withoutPrefix)
-                       else withoutPrefix
-    in T.strip withoutSuffix
+        withoutPrefix =
+            if "```json" `T.isPrefixOf` stripped
+                then T.drop 7 stripped
+                else
+                    if "```" `T.isPrefixOf` stripped
+                        then T.drop 3 stripped
+                        else stripped
+        -- Remove ``` suffix
+        withoutSuffix =
+            if "```" `T.isSuffixOf` T.strip withoutPrefix
+                then T.dropEnd 3 (T.strip withoutPrefix)
+                else withoutPrefix
+     in T.strip withoutSuffix
 
 -- | Convert ChatMsg to GeminiContent
 toGeminiContent :: ChatMsg -> Maybe GeminiContent
@@ -128,19 +131,22 @@ fromGeminiContent now content = case content ^. #role of
                     { toolCalls = zipWith convertFunctionCallWithIndex [1 ..] functionCalls
                     , createdAt = now
                     }
-        partsList -> 
+        partsList ->
             -- If we have multiple parts that aren't function calls, concatenate text parts
             -- This can happen when Google returns structured JSON after tool calls
             let textParts = [text | GeminiTextPart text <- partsList]
                 combinedText = T.intercalate "" textParts
                 -- Clean markdown code blocks that Google often adds around JSON
                 cleanedText = cleanMarkdownJson combinedText
-            in if null textParts
-               then throwError $ ProviderError "Unexpected model content structure: no text or function calls"
-               else pure $ AssistantMsg
-                    { content = cleanedText
-                    , createdAt = now
-                    }
+             in if null textParts
+                    then
+                        throwError $ ProviderError "Unexpected model content structure: no text or function calls"
+                    else
+                        pure
+                            $ AssistantMsg
+                                { content = cleanedText
+                                , createdAt = now
+                                }
     _ ->
         throwError
             $ ProviderError

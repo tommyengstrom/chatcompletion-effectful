@@ -70,7 +70,7 @@ respondWithToolsStructured tools conversationId msg = do
     pure (msgs, parsedContents)
 
 respondWithToolsJson
-    :: forall  es
+    :: forall es
      . ChatCompletionStorage :> es
     => ChatCompletion :> es
     => Error ChatCompletionError :> es
@@ -116,8 +116,8 @@ executeToolCalls tools toolCalls = do
     forM toolCalls $ \tc -> do
         response <- case find (\t -> t ^. #name == tc ^. #toolName) tools of
             Nothing ->
-                pure $
-                    ToolResponse
+                pure
+                    $ ToolResponse
                         { modelResponse = "Tool not found: " <> tc ^. #toolName
                         , localResponse = []
                         }
@@ -127,13 +127,13 @@ executeToolCalls tools toolCalls = do
                 case result of
                     Right resp -> pure resp
                     Left err ->
-                        pure $
-                            ToolResponse
+                        pure
+                            $ ToolResponse
                                 { modelResponse = "Tool error: " <> Text.pack err
                                 , localResponse = []
                                 }
-        pure $
-            ToolCallResponseMsgIn
+        pure
+            $ ToolCallResponseMsgIn
                 { toolCallId = tc ^. #toolCallId
                 , toolResponse = response
                 }

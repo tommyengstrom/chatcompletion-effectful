@@ -115,12 +115,15 @@ runChatCompletionOpenAi settings es = do
                     , response_format = case responseFormat of
                         Unstructured -> Nothing
                         JsonValue -> Just RF.JSON_Object
-                        JsonSchema schema -> Just $ RF.JSON_Schema RF.JSONSchema
-                            { description = Nothing
-                            , name = "response_format"
-                            , schema = Just schema
-                            , strict = Nothing
-                            }
+                        JsonSchema schema ->
+                            Just
+                                $ RF.JSON_Schema
+                                    RF.JSONSchema
+                                        { description = Nothing
+                                        , name = "response_format"
+                                        , schema = Just schema
+                                        , strict = Nothing
+                                        }
                     }
         case response of
             Left err ->

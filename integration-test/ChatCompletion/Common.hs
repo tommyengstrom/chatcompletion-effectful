@@ -90,19 +90,27 @@ specWithProvider runProvider = do
         it "Responds with JSON when requested" $ do
             (_, jsonResult) <- runProvider tvar $ do
                 convId <- createConversation "You are a helpful assistant. Always provide direct answers."
-                respondWithToolsJson [] convId "What is 2+2? Reply with a JSON object containing the field 'answer' with the numeric result."
+                respondWithToolsJson
+                    []
+                    convId
+                    "What is 2+2? Reply with a JSON object containing the field 'answer' with the numeric result."
             jsonResult `shouldSatisfy` isRight
             case jsonResult of
-                Right val -> val `shouldSatisfy` \v ->
-                    case v of
-                        Object obj -> "answer" `elem` keys obj
-                        _ -> False
+                Right val ->
+                    val `shouldSatisfy` \v ->
+                        case v of
+                            Object obj -> "answer" `elem` keys obj
+                            _ -> False
                 Left _ -> expectationFailure "Expected valid JSON response"
 
         it "Responds with structured output matching schema" $ do
             (_, result) <- runProvider tvar $ do
-                convId <- createConversation "You are a helpful assistant. Provide structured data when requested."
-                respondWithToolsStructured @PersonInfo [] convId "Tell me about Albert Einstein. Include his name and approximate age at death."
+                convId <-
+                    createConversation "You are a helpful assistant. Provide structured data when requested."
+                respondWithToolsStructured @PersonInfo
+                    []
+                    convId
+                    "Tell me about Albert Einstein. Include his name and approximate age at death."
             result `shouldSatisfy` isRight
             case result of
                 Right (PersonInfo name age) -> do
@@ -112,16 +120,24 @@ specWithProvider runProvider = do
 
         it "Combines tools with structured output" $ do
             (msgs, result) <- runProvider tvar $ do
-                convId <- createConversation "You are a helpful assistant. Use tools when needed and provide structured responses."
-                respondWithToolsStructured @ContactInfo [listContacts, showPhoneNumber] convId "Get John's information and return it as structured data."
+                convId <-
+                    createConversation
+                        "You are a helpful assistant. Use tools when needed and provide structured responses."
+                respondWithToolsStructured @ContactInfo
+                    [listContacts, showPhoneNumber]
+                    convId
+                    "Get John's information and return it as structured data."
             result `shouldSatisfy` isRight
             case result of
                 Right (ContactInfo name _) -> do
-                   name `shouldSatisfy` T.isInfixOf "John"
+                    name `shouldSatisfy` T.isInfixOf "John"
                 Left err -> expectationFailure $ "Failed to parse structured response: " <> err
-            msgs `shouldSatisfy` any (\case
-                ToolCallMsg{} -> True
-                _ -> False)
+            msgs
+                `shouldSatisfy` any
+                    ( \case
+                        ToolCallMsg{} -> True
+                        _ -> False
+                    )
 
 -- Test data types for structured output
 data PersonInfo = PersonInfo

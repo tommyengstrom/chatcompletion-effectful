@@ -19,4 +19,3 @@ data ChatCompletion :: Effect where
 
 type instance DispatchOf ChatCompletion = 'Dynamic
 makeEffect ''ChatCompletion
-

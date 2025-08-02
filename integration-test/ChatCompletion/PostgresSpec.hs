@@ -17,14 +17,15 @@ spec = describe "runChatCompletionStoragePostgres (with pooling)" $ do
         pure $ "conversations_" <> toText unixTime
 
     let connectionString = "host=localhost port=5432 user=postgres password=postgres dbname=chatcompletion-test"
-    let config = PostgresConfig
-            { connectionString = connectionString
-            , poolSize = 1
-            , connectionTimeout = 5
-            , connectionIdleTime = 60
-            , poolStripes = 1
-            , conversationsTable = conversationsTable
-            }
+    let config =
+            PostgresConfig
+                { connectionString = connectionString
+                , poolSize = 1
+                , connectionTimeout = 5
+                , connectionIdleTime = 60
+                , poolStripes = 1
+                , conversationsTable = conversationsTable
+                }
 
     let cleanup = do
             conn <- connectPostgreSQL connectionString
