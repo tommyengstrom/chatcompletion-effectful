@@ -23,22 +23,6 @@ import Effectful
 import Effectful.Error.Static
 import Relude
 
--- | Clean JSON response by removing markdown code blocks if present
-cleanJsonResponse :: Text -> Text
-cleanJsonResponse t =
-    let stripped = Text.strip t
-        -- Remove ```json prefix
-        withoutPrefix = if "```json" `Text.isPrefixOf` stripped
-                       then Text.drop 7 stripped
-                       else if "```" `Text.isPrefixOf` stripped
-                            then Text.drop 3 stripped
-                            else stripped
-        -- Remove ``` suffix  
-        withoutSuffix = if "```" `Text.isSuffixOf` Text.strip withoutPrefix
-                       then Text.dropEnd 3 (Text.strip withoutPrefix)
-                       else withoutPrefix
-    in Text.strip withoutSuffix
-
 -- | Send a user message and get response (no tool handling)
 appendUserMessage
     :: ChatCompletionStorage :> es
@@ -82,7 +66,7 @@ respondWithToolsStructured tools conversationId msg = do
         parsedContents :: Either String a
         parsedContents = case L.reverse assistantContents of
             [] -> Left "No assistant response found"
-            (lastContent : _) -> eitherDecodeStrictText (cleanJsonResponse lastContent)
+            (lastContent : _) -> eitherDecodeStrictText lastContent
     pure (msgs, parsedContents)
 
 respondWithToolsJson
@@ -103,7 +87,7 @@ respondWithToolsJson tools conversationId msg = do
         parsedContents :: Either String Value
         parsedContents = case L.reverse assistantContents of
             [] -> Left "No assistant response found"
-            (lastContent : _) -> eitherDecodeStrictText (cleanJsonResponse lastContent)
+            (lastContent : _) -> eitherDecodeStrictText lastContent
     pure (msgs, parsedContents)
 
 -- | Send a user message and handle any tool calls automatically
