@@ -35,7 +35,7 @@ runChatApp = do
                 createConversation "You are a helpful assistant with access to the user's contacts."
 
             -- Send a message with tools
-            msgs <- respondWithTools myTools convId "What is John's phone number?"
+            msgs <- respondWithTools (const $ pure ()) myTools convId "What is John's phone number?"
 
             -- Display the conversation
             for_ msgs $ \msg -> case msg of
