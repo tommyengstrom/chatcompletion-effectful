@@ -70,9 +70,8 @@ respondWithToolsStructured tools conversationId msg = do
     pure (msgs, parsedContents)
 
 respondWithToolsJson
-    :: forall a es
-     . FromJSON a
-    => ChatCompletionStorage :> es
+    :: forall  es
+     . ChatCompletionStorage :> es
     => ChatCompletion :> es
     => Error ChatCompletionError :> es
     => [ToolDef es] -- Tools available for this conversation

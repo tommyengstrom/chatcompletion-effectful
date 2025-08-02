@@ -117,7 +117,7 @@ runChatCompletionOpenAi settings es = do
                         JsonValue -> Just RF.JSON_Object
                         JsonSchema schema -> Just $ RF.JSON_Schema RF.JSONSchema
                             { description = Nothing
-                            , name = "Response format"
+                            , name = "response_format"
                             , schema = Just schema
                             , strict = Nothing
                             }

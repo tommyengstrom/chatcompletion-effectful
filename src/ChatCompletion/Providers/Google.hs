@@ -100,8 +100,8 @@ runChatCompletionGoogle settings es = do
         -> Eff (ChatCompletion ': es) a
         -> Eff es a
     runChatCompletion generateContent clientEnv = interpret \_ -> \case
-        SendMessages tools messages ->
-            sendMessagesToGemini generateContent clientEnv tools messages
+        SendMessages responseFormat tools messages ->
+            sendMessagesToGemini generateContent clientEnv responseFormat tools messages
 
     adapt :: ClientEnv -> ClientM x -> Eff es x
     adapt env m = do
@@ -113,10 +113,11 @@ runChatCompletionGoogle settings es = do
     sendMessagesToGemini
         :: ([Text] -> Text -> GeminiChatRequest -> ClientM GeminiChatResponse)
         -> ClientEnv
+        -> ResponseFormat
         -> [ToolDeclaration]
         -> [ChatMsg]
         -> Eff es ChatMsg
-    sendMessagesToGemini generateContent clientEnv tools' messages = do
+    sendMessagesToGemini generateContent clientEnv responseFormat tools' messages = do
         let tools =
                 if null tools'
                     then Nothing
@@ -125,6 +126,16 @@ runChatCompletionGoogle settings es = do
         let contents = V.fromList $ mapMaybe toGeminiContent otherMessages
         let modelName = settings ^. #model
         let modelPath = [modelName <> ":generateContent"]
+        let generationConfig = case responseFormat of
+                Unstructured -> Nothing
+                JsonValue -> Just $ GeminiGenerationConfig 
+                    { responseMimeType = Just "application/json"
+                    , responseSchema = Nothing
+                    }
+                JsonSchema schema -> Just $ GeminiGenerationConfig
+                    { responseMimeType = Just "application/json"
+                    , responseSchema = Just schema
+                    }
         response <-
             adapt clientEnv
                 $ generateContent
@@ -134,6 +145,7 @@ runChatCompletionGoogle settings es = do
                         { contents = contents
                         , tools = tools
                         , systemInstruction = systemInstruction
+                        , generationConfig = generationConfig
                         }
 
         liftIO $ (settings ^. #responseLogger) (ConversationId nil) response
