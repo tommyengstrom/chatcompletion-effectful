@@ -12,6 +12,72 @@ import Effectful.Error.Static
 import Relude
 import Test.Hspec
 
+-- | Helper that verifies streaming matches return value
+respondWithToolsVerified
+    :: IOE :> es
+    => ChatCompletionStorage :> es
+    => ChatCompletion :> es
+    => Error ChatCompletionError :> es
+    => [ToolDef es]
+    -> ConversationId
+    -> Text
+    -> Eff es [ChatMsg]
+respondWithToolsVerified tools convId msg = do
+    streamedRef <- liftIO $ newIORef []
+    let callback msg' = liftIO $ modifyIORef' streamedRef (<> [msg'])
+    
+    returnedMsgs <- respondWithTools callback tools convId msg
+    streamedMsgs <- liftIO $ readIORef streamedRef
+    
+    -- Verify they match
+    liftIO $ streamedMsgs `shouldBe` returnedMsgs
+    pure returnedMsgs
+
+-- | Helper for structured responses with verification
+respondWithToolsStructuredVerified
+    :: forall a es
+     . ToSchema a
+    => FromJSON a
+    => IOE :> es
+    => ChatCompletionStorage :> es
+    => ChatCompletion :> es
+    => Error ChatCompletionError :> es
+    => [ToolDef es]
+    -> ConversationId
+    -> Text
+    -> Eff es ([ChatMsg], Either String a)
+respondWithToolsStructuredVerified tools convId msg = do
+    streamedRef <- liftIO $ newIORef []
+    let callback msg' = liftIO $ modifyIORef' streamedRef (<> [msg'])
+    
+    result <- respondWithToolsStructured callback tools convId msg
+    streamedMsgs <- liftIO $ readIORef streamedRef
+    
+    -- Verify they match
+    liftIO $ streamedMsgs `shouldBe` fst result
+    pure result
+
+-- | Helper for JSON responses with verification
+respondWithToolsJsonVerified
+    :: IOE :> es
+    => ChatCompletionStorage :> es
+    => ChatCompletion :> es
+    => Error ChatCompletionError :> es
+    => [ToolDef es]
+    -> ConversationId
+    -> Text
+    -> Eff es ([ChatMsg], Either String Value)
+respondWithToolsJsonVerified tools convId msg = do
+    streamedRef <- liftIO $ newIORef []
+    let callback msg' = liftIO $ modifyIORef' streamedRef (<> [msg'])
+    
+    result <- respondWithToolsJson callback tools convId msg
+    streamedMsgs <- liftIO $ readIORef streamedRef
+    
+    -- Verify they match
+    liftIO $ streamedMsgs `shouldBe` fst result
+    pure result
+
 -- | Common spec that tests basic ChatCompletion functionality
 -- The runner function should handle setting up the specific provider
 specWithProvider
@@ -46,7 +112,7 @@ specWithProvider runProvider = do
             convId <-
                 createConversation
                     "You are the users assistant. When asked about contacts or phone numbers, use the available tools to find the information."
-            msgs <- respondWithTools [listContacts] convId "What is my friend John's last name?"
+            msgs <- respondWithToolsVerified [listContacts] convId "What is my friend John's last name?"
             pure msgs
         response
             `shouldSatisfy` any
@@ -61,7 +127,7 @@ specWithProvider runProvider = do
                 createConversation
                     "You are the users assistant, always trying to help them without first clearifying what they want. When asked about contacts or phone numbers, use the available tools to find the information."
             msgs <-
-                respondWithTools [listContacts, showPhoneNumber] convId "What is John's phone number?"
+                respondWithToolsVerified [listContacts, showPhoneNumber] convId "What is John's phone number?"
             pure msgs
         response
             `shouldSatisfy` any
@@ -90,7 +156,7 @@ specWithProvider runProvider = do
         it "Responds with JSON when requested" $ do
             (_, jsonResult) <- runProvider tvar $ do
                 convId <- createConversation "You are a helpful assistant. Always provide direct answers."
-                respondWithToolsJson
+                respondWithToolsJsonVerified
                     []
                     convId
                     "What is 2+2? Reply with a JSON object containing the field 'answer' with the numeric result."
@@ -107,7 +173,7 @@ specWithProvider runProvider = do
             (_, result) <- runProvider tvar $ do
                 convId <-
                     createConversation "You are a helpful assistant. Provide structured data when requested."
-                respondWithToolsStructured @PersonInfo
+                respondWithToolsStructuredVerified @PersonInfo
                     []
                     convId
                     "Tell me about Albert Einstein. Include his name and approximate age at death."
@@ -123,7 +189,7 @@ specWithProvider runProvider = do
                 convId <-
                     createConversation
                         "You are a helpful assistant. Use tools when needed and provide structured responses."
-                respondWithToolsStructured @ContactInfo
+                respondWithToolsStructuredVerified @ContactInfo
                     [listContacts, showPhoneNumber]
                     convId
                     "Get John's information and return it as structured data."
