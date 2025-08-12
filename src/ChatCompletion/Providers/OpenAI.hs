@@ -53,7 +53,7 @@ defaultOpenAiSettings :: OpenAiApiKey -> OpenAiSettings
 defaultOpenAiSettings apiKey =
     OpenAiSettings
         { apiKey = apiKey
-        , model = "gpt-4o"
+        , model = "gpt-5-mini"
         , baseUrl = "https://api.openai.com"
         , responseLogger = \_ _ -> pure ()
         }
