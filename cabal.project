@@ -1,0 +1,23 @@
+-- Cabal project configuration for chatcompletion-effectful
+-- Using hpack to generate the .cabal file from package.yaml
+
+packages: .
+
+-- Use GHC 9.10.2 to match the Stack configuration
+with-compiler: ghc-9.10.2
+
+-- Enable documentation
+documentation: True
+
+-- Optimization settings
+optimization: 1
+
+-- Test settings
+test-show-details: direct
+
+
+-- Extra package from Hackage
+extra-packages:
+  openai ==1.1.0,
+  hpack ==0.38.1
+

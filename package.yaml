@@ -95,9 +95,61 @@ library:
     - uuid
     - vector
 
+flags:
+  local-dev:
+    description: Enable local development mode
+    default: false
+    manual: true
+
+internal-libraries:
+  test-dev:
+    when:
+      - condition: flag(local-dev)
+        then:
+          source-dirs:
+            - src
+            - test
+            - benchmark
+          dependencies:
+            - aeson
+            - base 
+            - base64-bytestring
+            - bytestring
+            - containers
+            - deepseq
+            - effectful
+            - effectful-th
+            - generic-lens
+            - hashable
+            - hspec
+            - http-api-data
+            - http-client
+            - http-client-tls
+            - http-types
+            - lens
+            - mtl
+            - openai
+            - openapi3
+            - postgresql-simple
+            - pretty-simple
+            - QuickCheck
+            - relude
+            - resource-pool
+            - servant
+            - servant-client
+            - text
+            - time
+            - unliftio
+            - unordered-containers
+            - uuid
+            - vector
+            - yaml
+        else:
+          buildable: false
+
 tests:
   chatcompletion-effectful-test:
-    main:                Spec.hs
+    main:                Main.hs
     source-dirs:         test
     ghc-options:
     - -threaded
@@ -137,18 +189,10 @@ tests:
     - hspec
 
   chatcompletion-effectful-integration-test:
-    main:                IntegrationSpec.hs
+    main:                Main.hs
     source-dirs:         
       - integration-test
       - test
-    other-modules:
-      - ChatCompletion.Common
-      - ChatCompletion.Provider.OpenAISpec
-      - ChatCompletion.Provider.GoogleSpec
-      - ChatCompletion.PostgresLoggerSpec
-      - ChatCompletion.PostgresSpec
-      - ChatCompletion.PostgresPoolSpec  
-      - ChatCompletion.Storage.InMemorySpec
     ghc-options:
       - -threaded
       - -rtsopts
@@ -226,7 +270,7 @@ executables:
     - chatcompletion-effectful
 
   chatcompletion-effectful-benchmark:
-    main:                BenchmarkSpec.hs
+    main:                Main.hs
     source-dirs:         benchmark
     ghc-options:
     - -threaded

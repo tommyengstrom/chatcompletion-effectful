@@ -23,6 +23,11 @@ source-repository head
   type: git
   location: https://github.com/tommyengstrom/chatcompletion-effectful
 
+flag local-dev
+  description: Enable local development mode
+  manual: True
+  default: False
+
 library
   exposed-modules:
       ChatCompletion
@@ -97,9 +102,105 @@ library
     , vector
   default-language: GHC2024
 
-executable chatcompletion-effectful-benchmark
-  main-is: BenchmarkSpec.hs
+library test-dev
   other-modules:
+      Paths_chatcompletion_effectful
+  autogen-modules:
+      Paths_chatcompletion_effectful
+  default-extensions:
+      AllowAmbiguousTypes
+      BlockArguments
+      DataKinds
+      DefaultSignatures
+      DeriveAnyClass
+      DerivingStrategies
+      DerivingVia
+      DuplicateRecordFields
+      FunctionalDependencies
+      GeneralizedNewtypeDeriving
+      LambdaCase
+      NoFieldSelectors
+      NoImplicitPrelude
+      OverloadedLabels
+      OverloadedLists
+      OverloadedStrings
+      NoStarIsType
+      StrictData
+      TemplateHaskell
+      TupleSections
+      TypeApplications
+      TypeFamilyDependencies
+      TypeOperators
+      ViewPatterns
+  ghc-options: -Weverything -Werror -Wno-all-missed-specialisations -Wno-missed-specialisations -Wno-implicit-prelude -Wno-missing-export-lists -Wno-missing-import-lists -Wno-missing-local-signatures -Wno-missing-safe-haskell-mode -Wno-prepositive-qualified-module -Wno-safe -Wno-unsafe -Wno-missing-kind-signatures -Wno-missing-poly-kind-signatures -Wno-monomorphism-restriction -Wno-missing-role-annotations -Wno-partial-fields -Wno-unused-packages
+  default-language: GHC2024
+  if flag(local-dev)
+    other-modules:
+        ChatCompletion
+        ChatCompletion.Effect
+        ChatCompletion.Error
+        ChatCompletion.PostgresLogger
+        ChatCompletion.Providers.Google
+        ChatCompletion.Providers.Google.API
+        ChatCompletion.Providers.Google.Convert
+        ChatCompletion.Providers.Google.Types
+        ChatCompletion.Providers.OpenAI
+        ChatCompletion.Storage.Effect
+        ChatCompletion.Storage.InMemory
+        ChatCompletion.Storage.Postgres
+        ChatCompletion.Tool
+        ChatCompletion.Types
+        ChatCompletion.Storage.InMemorySpec
+        Main
+        BenchmarkSpec
+        ChatCompletion.Benchmark.Common
+        ChatCompletion.Benchmark.Google
+        ChatCompletion.Benchmark.OpenAI
+    hs-source-dirs:
+        src
+        test
+        benchmark
+    build-depends:
+        QuickCheck
+      , aeson
+      , base
+      , base64-bytestring
+      , bytestring
+      , containers
+      , deepseq
+      , effectful
+      , effectful-th
+      , generic-lens
+      , hashable
+      , hspec
+      , http-api-data
+      , http-client
+      , http-client-tls
+      , http-types
+      , lens
+      , mtl
+      , openai
+      , openapi3
+      , postgresql-simple
+      , pretty-simple
+      , relude
+      , resource-pool
+      , servant
+      , servant-client
+      , text
+      , time
+      , unliftio
+      , unordered-containers
+      , uuid
+      , vector
+      , yaml
+  else
+    buildable: False
+
+executable chatcompletion-effectful-benchmark
+  main-is: Main.hs
+  other-modules:
+      BenchmarkSpec
       ChatCompletion.Benchmark.Common
       ChatCompletion.Benchmark.Google
       ChatCompletion.Benchmark.OpenAI
@@ -219,15 +320,19 @@ executable examples
 
 test-suite chatcompletion-effectful-integration-test
   type: exitcode-stdio-1.0
-  main-is: IntegrationSpec.hs
+  main-is: Main.hs
   other-modules:
       ChatCompletion.Common
-      ChatCompletion.Provider.OpenAISpec
-      ChatCompletion.Provider.GoogleSpec
       ChatCompletion.PostgresLoggerSpec
-      ChatCompletion.PostgresSpec
       ChatCompletion.PostgresPoolSpec
+      ChatCompletion.PostgresSpec
+      ChatCompletion.Provider.GoogleSpec
+      ChatCompletion.Provider.OpenAISpec
       ChatCompletion.Storage.InMemorySpec
+      Main
+      Paths_chatcompletion_effectful
+  autogen-modules:
+      Paths_chatcompletion_effectful
   hs-source-dirs:
       integration-test
       test
@@ -290,7 +395,7 @@ test-suite chatcompletion-effectful-integration-test
 
 test-suite chatcompletion-effectful-test
   type: exitcode-stdio-1.0
-  main-is: Spec.hs
+  main-is: Main.hs
   other-modules:
       ChatCompletion.Storage.InMemorySpec
       Paths_chatcompletion_effectful
