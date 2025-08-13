@@ -1,4 +1,4 @@
-module BenchmarkSpec where
+module Main where
 
 import ChatCompletion.Benchmark.Google
 import ChatCompletion.Benchmark.OpenAI
