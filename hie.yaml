@@ -1,3 +1,7 @@
 cradle:
   cabal:
-    component: "lib:test-dev"
+    - path: "./src"
+      component: "chatcompletion-effectful:test:test-dev"
+
+    - path: "./test"
+      component: "chatcompletion-effectful:test:test-dev"

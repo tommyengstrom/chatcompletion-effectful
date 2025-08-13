@@ -102,93 +102,6 @@ library
     , vector
   default-language: GHC2024
 
-library test-dev
-  exposed-modules:
-      ChatCompletion
-      ChatCompletion.Effect
-      ChatCompletion.Error
-      ChatCompletion.PostgresLogger
-      ChatCompletion.Providers.Google
-      ChatCompletion.Providers.Google.API
-      ChatCompletion.Providers.Google.Convert
-      ChatCompletion.Providers.Google.Types
-      ChatCompletion.Providers.OpenAI
-      ChatCompletion.Storage.Effect
-      ChatCompletion.Storage.InMemory
-      ChatCompletion.Storage.Postgres
-      ChatCompletion.Tool
-      ChatCompletion.Types
-      ChatCompletion.Storage.InMemorySpec
-      Main
-  other-modules:
-      Paths_chatcompletion_effectful
-  autogen-modules:
-      Paths_chatcompletion_effectful
-  hs-source-dirs:
-      src
-      test
-  default-extensions:
-      AllowAmbiguousTypes
-      BlockArguments
-      DataKinds
-      DefaultSignatures
-      DeriveAnyClass
-      DerivingStrategies
-      DerivingVia
-      DuplicateRecordFields
-      FunctionalDependencies
-      GeneralizedNewtypeDeriving
-      LambdaCase
-      NoFieldSelectors
-      NoImplicitPrelude
-      OverloadedLabels
-      OverloadedLists
-      OverloadedStrings
-      NoStarIsType
-      StrictData
-      TemplateHaskell
-      TupleSections
-      TypeApplications
-      TypeFamilyDependencies
-      TypeOperators
-      ViewPatterns
-  ghc-options: -Weverything -Werror -Wno-all-missed-specialisations -Wno-missed-specialisations -Wno-implicit-prelude -Wno-missing-export-lists -Wno-missing-import-lists -Wno-missing-local-signatures -Wno-missing-safe-haskell-mode -Wno-prepositive-qualified-module -Wno-safe -Wno-unsafe -Wno-missing-kind-signatures -Wno-missing-poly-kind-signatures -Wno-monomorphism-restriction -Wno-missing-role-annotations -Wno-partial-fields -Wno-unused-packages -Wwarn -Wno-missing-home-modules
-  build-depends:
-      QuickCheck
-    , aeson
-    , base
-    , base64-bytestring
-    , bytestring
-    , containers
-    , deepseq
-    , effectful
-    , effectful-th
-    , generic-lens
-    , hashable
-    , hspec
-    , http-api-data
-    , http-client
-    , http-client-tls
-    , http-types
-    , lens
-    , mtl
-    , openai
-    , openapi3
-    , postgresql-simple
-    , pretty-simple
-    , relude
-    , resource-pool
-    , servant
-    , servant-client
-    , text
-    , time
-    , unliftio
-    , unordered-containers
-    , uuid
-    , vector
-    , yaml
-  default-language: GHC2024
-
 executable chatcompletion-effectful-benchmark
   main-is: Main.hs
   other-modules:
@@ -244,7 +157,7 @@ executable chatcompletion-effectful-benchmark
     , vector
   default-language: GHC2024
 
-test-suite chatcompletion-effectful-integration-test
+test-suite chatcompletion-effectful-test
   type: exitcode-stdio-1.0
   main-is: Main.hs
   other-modules:
@@ -255,12 +168,10 @@ test-suite chatcompletion-effectful-integration-test
       ChatCompletion.Provider.GoogleSpec
       ChatCompletion.Provider.OpenAISpec
       ChatCompletion.Storage.InMemorySpec
-      Main
       Paths_chatcompletion_effectful
   autogen-modules:
       Paths_chatcompletion_effectful
   hs-source-dirs:
-      integration-test
       test
   default-extensions:
       AllowAmbiguousTypes
@@ -319,15 +230,36 @@ test-suite chatcompletion-effectful-integration-test
     , yaml
   default-language: GHC2024
 
-test-suite chatcompletion-effectful-test
+test-suite test-dev
   type: exitcode-stdio-1.0
   main-is: Main.hs
   other-modules:
+      ChatCompletion
+      ChatCompletion.Effect
+      ChatCompletion.Error
+      ChatCompletion.PostgresLogger
+      ChatCompletion.Providers.Google
+      ChatCompletion.Providers.Google.API
+      ChatCompletion.Providers.Google.Convert
+      ChatCompletion.Providers.Google.Types
+      ChatCompletion.Providers.OpenAI
+      ChatCompletion.Storage.Effect
+      ChatCompletion.Storage.InMemory
+      ChatCompletion.Storage.Postgres
+      ChatCompletion.Tool
+      ChatCompletion.Types
+      ChatCompletion.Common
+      ChatCompletion.PostgresLoggerSpec
+      ChatCompletion.PostgresPoolSpec
+      ChatCompletion.PostgresSpec
+      ChatCompletion.Provider.GoogleSpec
+      ChatCompletion.Provider.OpenAISpec
       ChatCompletion.Storage.InMemorySpec
       Paths_chatcompletion_effectful
   autogen-modules:
       Paths_chatcompletion_effectful
   hs-source-dirs:
+      src
       test
   default-extensions:
       AllowAmbiguousTypes
@@ -354,14 +286,13 @@ test-suite chatcompletion-effectful-test
       TypeFamilyDependencies
       TypeOperators
       ViewPatterns
-  ghc-options: -Weverything -Werror -Wno-all-missed-specialisations -Wno-missed-specialisations -Wno-implicit-prelude -Wno-missing-export-lists -Wno-missing-import-lists -Wno-missing-local-signatures -Wno-missing-safe-haskell-mode -Wno-prepositive-qualified-module -Wno-safe -Wno-unsafe -Wno-missing-kind-signatures -Wno-missing-poly-kind-signatures -Wno-monomorphism-restriction -Wno-missing-role-annotations -Wno-partial-fields -Wno-unused-packages -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Weverything -Werror -Wno-all-missed-specialisations -Wno-missed-specialisations -Wno-implicit-prelude -Wno-missing-export-lists -Wno-missing-import-lists -Wno-missing-local-signatures -Wno-missing-safe-haskell-mode -Wno-prepositive-qualified-module -Wno-safe -Wno-unsafe -Wno-missing-kind-signatures -Wno-missing-poly-kind-signatures -Wno-monomorphism-restriction -Wno-missing-role-annotations -Wno-partial-fields -Wno-unused-packages -Wwarn -Wno-missing-home-modules -fobject-code
   build-depends:
       QuickCheck
     , aeson
     , base
     , base64-bytestring
     , bytestring
-    , chatcompletion-effectful
     , containers
     , deepseq
     , effectful
@@ -369,6 +300,9 @@ test-suite chatcompletion-effectful-test
     , generic-lens
     , hashable
     , hspec
+    , http-api-data
+    , http-client
+    , http-client-tls
     , http-types
     , lens
     , mtl
@@ -377,6 +311,9 @@ test-suite chatcompletion-effectful-test
     , postgresql-simple
     , pretty-simple
     , relude
+    , resource-pool
+    , servant
+    , servant-client
     , text
     , time
     , unliftio

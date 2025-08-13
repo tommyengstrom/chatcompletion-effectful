@@ -101,50 +101,50 @@ flags:
     default: false
     manual: true
 
-internal-libraries:
-  test-dev:
-          source-dirs:
-            - src
-            - test
-          ghc-options: 
-          - -Wwarn
-          - -Wno-missing-home-modules   
-          dependencies:
-            - aeson
-            - base 
-            - base64-bytestring
-            - bytestring
-            - containers
-            - deepseq
-            - effectful
-            - effectful-th
-            - generic-lens
-            - hashable
-            - hspec
-            - http-api-data
-            - http-client
-            - http-client-tls
-            - http-types
-            - lens
-            - mtl
-            - openai
-            - openapi3
-            - postgresql-simple
-            - pretty-simple
-            - QuickCheck
-            - relude
-            - resource-pool
-            - servant
-            - servant-client
-            - text
-            - time
-            - unliftio
-            - unordered-containers
-            - uuid
-            - vector
-            - yaml
-
 tests:
+  test-dev:
+    main:                Main.hs
+    source-dirs:
+      - src
+      - test
+    ghc-options: 
+    - -Wwarn
+    - -Wno-missing-home-modules   
+    - -fobject-code
+    dependencies:
+      - aeson
+      - base 
+      - base64-bytestring
+      - bytestring
+      - containers
+      - deepseq
+      - effectful
+      - effectful-th
+      - generic-lens
+      - hashable
+      - hspec
+      - http-api-data
+      - http-client
+      - http-client-tls
+      - http-types
+      - lens
+      - mtl
+      - openai
+      - openapi3
+      - postgresql-simple
+      - pretty-simple
+      - QuickCheck
+      - relude
+      - resource-pool
+      - servant
+      - servant-client
+      - text
+      - time
+      - unliftio
+      - unordered-containers
+      - uuid
+      - vector
+      - yaml
   chatcompletion-effectful-test:
     main:                Main.hs
     source-dirs:         test
@@ -185,48 +185,6 @@ tests:
     - QuickCheck
     - hspec
 
-  chatcompletion-effectful-integration-test:
-    main:                Main.hs
-    source-dirs:         
-      - integration-test
-      - test
-    ghc-options:
-      - -threaded
-      - -rtsopts
-      - -with-rtsopts=-N
-    dependencies:
-      - aeson
-      - base 
-      - base64-bytestring
-      - bytestring
-      - containers
-      - deepseq
-      - effectful
-      - effectful-th
-      - generic-lens
-      - hashable
-      - http-types
-      - lens
-      - mtl
-      - openai
-      - openapi3
-      - postgresql-simple
-      - pretty-simple
-      - QuickCheck
-      - text
-      - time
-      - relude
-      - unliftio
-      - unordered-containers
-      - uuid
-      - vector
-      - yaml
-      - openai
-      - chatcompletion-effectful
-      - QuickCheck
-      - hspec
-      - lens
-      - generic-lens
 
 executables:
   chatcompletion-effectful-benchmark:
