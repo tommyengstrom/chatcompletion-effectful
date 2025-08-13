@@ -3,6 +3,7 @@ module ChatCompletion.Benchmark.Google where
 import ChatCompletion
 import ChatCompletion.Benchmark.Common
 import ChatCompletion.Providers.Google
+import ChatCompletion.Providers.Google.Types
 import ChatCompletion.Storage.InMemory
 import Control.Exception (catch, try)
 import Data.Char (isDigit)
@@ -16,7 +17,7 @@ import Text.Printf
 
 -- Models to benchmark
 googleModels :: [Text]
-googleModels = 
+googleModels =
     [ "gemini-2.5-pro"
     , "gemini-2.5-flash"
     ]
@@ -36,7 +37,7 @@ extractErrorInfo err
     | "statusCode = 403" `isInfixOf` err = "403 Forbidden"
     | "statusCode = 404" `isInfixOf` err = "404 Not Found"
     | "statusCode = 400" `isInfixOf` err = "400 Bad Request"
-    | "NetworkError" `isInfixOf` err = 
+    | "NetworkError" `isInfixOf` err =
         let statusCode = extractStatusCode err
         in if statusCode /= ""
            then statusCode <> " Network Error"
@@ -44,9 +45,9 @@ extractErrorInfo err
     | otherwise = take 80 err  -- Fallback to first 80 chars of error
   where
     extractStatusCode :: String -> String
-    extractStatusCode s = 
+    extractStatusCode s =
         case T.breakOn "statusCode = " (T.pack s) of
-            (_, rest) | not (T.null rest) -> 
+            (_, rest) | not (T.null rest) ->
                 let code = T.take 3 $ T.drop 13 rest  -- Skip "statusCode = "
                 in if T.all isDigit code
                    then T.unpack code
@@ -74,18 +75,18 @@ benchmarkGoogleModel :: Text -> Text -> IO BenchmarkResult
 benchmarkGoogleModel apiKey model = do
     let settings = (defaultGoogleSettings (GoogleApiKey apiKey))
             { model = model }
-    
+
     -- Get current time to make prompts unique and prevent caching
     currentTime <- getCurrentTime
     let timeStamp = T.pack $ show currentTime
-    
+
     -- Simple message benchmark
     putStr "  - Simple message: "
     simpleResult <- try $ timeAction $ runGoogleBenchmark settings $ do
         convId <- createConversation $ "Act exactly as a simple calculator. No extra text, just the answer. [Session: " <> timeStamp <> "]"
         appendUserMessage convId "2 + 2"
         messages <- getConversation convId
-        resp <- sendMessages Unstructured [] messages
+        resp <- sendMessages convId Unstructured [] messages
         appendMessage convId (chatMsgToIn resp)
         pure ()
     simpleTime <- case simpleResult of
@@ -95,11 +96,11 @@ benchmarkGoogleModel apiKey model = do
         Left (e :: SomeException) -> do
             putStrLn $ "FAILURE - " <> extractErrorInfo (show e)
             pure 0
-    
+
     -- Tool call benchmark
     putStr "  - Tool call: "
     toolResult <- try $ timeAction $ runGoogleBenchmark settings $ do
-        convId <- createConversation $ 
+        convId <- createConversation $
             "You are the users assistant. When asked about contacts or phone numbers, use the available tools to find the information. [Session: " <> timeStamp <> "]"
         _ <- respondWithTools (\_ -> pure ()) [listContacts] convId "What is my friend John's last name?"
         pure ()
@@ -110,11 +111,11 @@ benchmarkGoogleModel apiKey model = do
         Left (e :: SomeException) -> do
             putStrLn $ "FAILURE - " <> extractErrorInfo (show e)
             pure 0
-    
+
     -- Sequential tool calls benchmark
     putStr "  - Sequential tools: "
     seqResult <- try $ timeAction $ runGoogleBenchmark settings $ do
-        convId <- createConversation $ 
+        convId <- createConversation $
             "You are the users assistant, always trying to help them without first clarifying what they want. When asked about contacts or phone numbers, use the available tools to find the information. [Session: " <> timeStamp <> "]"
         _ <- respondWithTools (\_ -> pure ()) [listContacts, showPhoneNumber] convId "What is John's phone number?"
         pure ()
@@ -125,7 +126,7 @@ benchmarkGoogleModel apiKey model = do
         Left (e :: SomeException) -> do
             putStrLn $ "FAILURE - " <> extractErrorInfo (show e)
             pure 0
-    
+
     pure BenchmarkResult
         { modelName = model
         , simpleMessageTime = simpleTime

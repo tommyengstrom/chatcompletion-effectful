@@ -186,27 +186,27 @@ tests:
     - hspec
 
 
-executables:
-  chatcompletion-effectful-benchmark:
-    main:                Main.hs
-    source-dirs:         benchmark
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    dependencies:
-    - aeson
-    - base 
-    - chatcompletion-effectful
-    - containers
-    - effectful
-    - effectful-th
-    - generic-lens
-    - lens
-    - openai
-    - openapi3
-    - relude
-    - text
-    - time
-    - unliftio
-    - vector
+# executables:
+#   chatcompletion-effectful-benchmark:
+#     main:                Main.hs
+#     source-dirs:         benchmark
+#     ghc-options:
+#     - -threaded
+#     - -rtsopts
+#     - -with-rtsopts=-N
+#     dependencies:
+#     - aeson
+#     - base 
+#     - chatcompletion-effectful
+#     - containers
+#     - effectful
+#     - effectful-th
+#     - generic-lens
+#     - lens
+#     - openai
+#     - openapi3
+#     - relude
+#     - text
+#     - time
+#     - unliftio
+#     - vector
