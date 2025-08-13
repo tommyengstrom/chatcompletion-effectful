@@ -1,50 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE RecordWildCards #-}
 
--- | Google Gemini provider for the ChatCompletion effect.
---
--- This module provides integration with Google's Gemini API for chat completions.
--- It supports:
---
--- * Text-based conversations
--- * System instructions
--- * Function calling (tools)
--- * Multiple tool calls in a single response
---
--- Note: Gemini requires at least one user message in the conversation.
--- System-only messages are not supported.
---
--- Example usage:
---
--- @
--- import ChatCompletion.Providers.Google
---
--- main = do
---     apiKey <- GoogleApiKey <$> getEnv "GEMINI_API_KEY"
---     let settings = defaultGoogleSettings apiKey
---     runEff
---         $ runError @ChatCompletionError
---         $ runChatCompletionGoogle settings
---         $ do
---             response <- sendMessages [] [UserMsg "Hello!" now]
---             liftIO $ print response
--- @
-module ChatCompletion.Providers.Google
-    ( -- * Types
-      module ChatCompletion.Providers.Google.Types
-
-      -- * API
-    , module ChatCompletion.Providers.Google.API
-
-      -- * Conversions
-    , module ChatCompletion.Providers.Google.Convert
-
-      -- * Settings
-    , defaultGoogleSettings
-
-      -- * Effect Handler
-    , runChatCompletionGoogle
-    ) where
+module ChatCompletion.Providers.Google where
 
 import ChatCompletion.Effect
 import ChatCompletion.Providers.Google.API
@@ -58,7 +15,7 @@ import Data.Generics.Product
 import Data.Text qualified as T
 import Data.Text.Lazy qualified as TL
 import Data.Time
-import Data.UUID (nil)
+import Data.Aeson (toJSON)
 import Data.Vector qualified as V
 import Effectful
 import Effectful.Dispatch.Dynamic
@@ -74,7 +31,7 @@ defaultGoogleSettings apiKey =
         { apiKey = apiKey
         , model = "gemini-2.5-flash"
         , baseUrl = "https://generativelanguage.googleapis.com"
-        , responseLogger = \_ _ -> pure ()
+        , requestLogger = \_ _ -> pure ()
         }
 
 -- | Run the ChatCompletion effect using Google's Gemini API
@@ -102,8 +59,8 @@ runChatCompletionGoogle settings es = do
         -> Eff (ChatCompletion ': es) a
         -> Eff es a
     runChatCompletion generateContent clientEnv = interpret \_ -> \case
-        SendMessages responseFormat tools messages ->
-            sendMessagesToGemini generateContent clientEnv responseFormat tools messages
+        SendMessages convId responseFormat tools messages ->
+            sendMessagesToGemini convId generateContent clientEnv responseFormat tools messages
 
     adapt :: ClientEnv -> ClientM x -> Eff es x
     adapt env m = do
@@ -113,13 +70,14 @@ runChatCompletionGoogle settings es = do
             Right x -> pure x
 
     sendMessagesToGemini
-        :: ([Text] -> Text -> GeminiChatRequest -> ClientM GeminiChatResponse)
+        :: ConversationId
+        -> ([Text] -> Text -> GeminiChatRequest -> ClientM GeminiChatResponse)
         -> ClientEnv
         -> ResponseFormat
         -> [ToolDeclaration]
         -> [ChatMsg]
         -> Eff es ChatMsg
-    sendMessagesToGemini generateContent clientEnv responseFormat tools' messages = do
+    sendMessagesToGemini convId  generateContent clientEnv responseFormat tools' messages = do
         let hasTools = not (null tools')
         let tools =
                 if hasTools
@@ -198,19 +156,21 @@ runChatCompletionGoogle settings es = do
                                     { responseMimeType = Just "application/json"
                                     , responseSchema = Just schema
                                     }
-        response <-
-            adapt clientEnv
-                $ generateContent
-                    modelPath
-                    (settings ^. #apiKey . typed @Text)
-                    GeminiChatRequest
+            req :: GeminiChatRequest
+            req = GeminiChatRequest
                         { contents = contents
                         , tools = tools
                         , systemInstruction = systemInstruction
                         , generationConfig = generationConfig
                         }
+        response <-
+            adapt clientEnv
+                $ generateContent
+                    modelPath
+                    (settings ^. #apiKey . typed @Text)
+                    req
 
-        liftIO $ (settings ^. #responseLogger) (ConversationId nil) response
+        liftIO $ (settings ^. #requestLogger) convId (toJSON response)
 
         case response ^? #candidates . taking 1 folded . #content of
             Nothing -> throwError $ ProviderError "No content in Gemini response"

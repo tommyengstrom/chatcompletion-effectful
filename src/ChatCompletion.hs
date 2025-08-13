@@ -29,9 +29,9 @@ appendUserMessage
     => ConversationId
     -> Text
     -> Eff es ()
-appendUserMessage conversationId content = do
+appendUserMessage convId content = do
     let userMsgIn = UserMsgIn{content}
-    appendMessage conversationId userMsgIn
+    appendMessage convId userMsgIn
 
 -- | Send a user message and handle any tool calls automatically
 respondWithTools
@@ -43,8 +43,8 @@ respondWithTools
     -> ConversationId
     -> Text
     -> Eff es [ChatMsg] -- Returns all new messages (assistant responses and tool calls)
-respondWithTools callback tools conversationId content =
-    respondWithTools' callback Unstructured tools conversationId content
+respondWithTools callback tools convId content =
+    respondWithTools' callback Unstructured tools convId content
 
 -- | Send a user message and handle any tool calls automatically
 respondWithToolsStructured
@@ -59,9 +59,9 @@ respondWithToolsStructured
     -> ConversationId
     -> Text
     -> Eff es ([ChatMsg], Either String a)
-respondWithToolsStructured callback tools conversationId msg = do
+respondWithToolsStructured callback tools convId msg = do
     msgs <-
-        respondWithTools' callback (JsonSchema . toJSON . toSchema $ Proxy @a) tools conversationId msg
+        respondWithTools' callback (JsonSchema . toJSON . toSchema $ Proxy @a) tools convId msg
     let assistantContents :: [Text]
         assistantContents = [content | AssistantMsg{content} <- msgs]
 
@@ -81,9 +81,9 @@ respondWithToolsJson
     -> ConversationId
     -> Text
     -> Eff es ([ChatMsg], Either String Value)
-respondWithToolsJson callback tools conversationId msg = do
+respondWithToolsJson callback tools convId msg = do
     msgs <-
-        respondWithTools' callback JsonValue tools conversationId msg
+        respondWithTools' callback JsonValue tools convId msg
     let assistantContents :: [Text]
         assistantContents = [content | AssistantMsg{content} <- msgs]
 
@@ -104,12 +104,12 @@ respondWithTools'
     -> ConversationId
     -> Text
     -> Eff es [ChatMsg] -- Returns all new messages (assistant responses and tool calls)
-respondWithTools' callback responseFormat tools conversationId content = do
+respondWithTools' callback responseFormat tools convId content = do
     -- Add the user message
-    appendUserMessage conversationId content
+    appendUserMessage convId content
 
     -- Get response and handle any tool calls
-    handleToolLoop callback responseFormat tools conversationId []
+    handleToolLoop callback responseFormat tools convId []
 
 -- | Execute tool calls and return the responses
 executeToolCalls
@@ -153,13 +153,13 @@ handleToolLoop
     -> ConversationId
     -> [ChatMsg] -- Accumulated responses
     -> Eff es [ChatMsg]
-handleToolLoop callback responseFormat tools conversationId accumulated = do
+handleToolLoop callback responseFormat tools convId accumulated = do
     -- Get conversation and send to LLM
-    conv <- getConversation conversationId
+    conv <- getConversation convId
 
-    response <- sendMessages responseFormat (toToolDeclaration <$> tools) conv
-    appendMessage conversationId (chatMsgToIn response)
-    
+    response <- sendMessages convId responseFormat (toToolDeclaration <$> tools) conv
+    appendMessage convId (chatMsgToIn response)
+
     -- Stream the response message
     callback response
 
@@ -170,13 +170,13 @@ handleToolLoop callback responseFormat tools conversationId accumulated = do
         ToolCallMsg{toolCalls} -> do
             toolResponsesIn <- executeToolCalls tools toolCalls
             -- Convert tool responses to ChatMsg by fetching the conversation again
-            forM_ toolResponsesIn $ \msgIn -> appendMessage conversationId msgIn
+            forM_ toolResponsesIn $ \msgIn -> appendMessage convId msgIn
             -- Get the updated conversation to get messages with timestamps
-            updatedConv <- getConversation conversationId
+            updatedConv <- getConversation convId
             let newMessages = drop (length conv + 1) updatedConv  -- +1 to skip the ToolCallMsg we already streamed
             -- Stream the tool response messages
             forM_ newMessages callback
-            handleToolLoop callback responseFormat tools conversationId (accumulated <> [response] <> newMessages)
+            handleToolLoop callback responseFormat tools convId (accumulated <> [response] <> newMessages)
 
         -- Unexpected response
         _ -> throwError $ ProviderError $ "Unexpected response type: " <> show response

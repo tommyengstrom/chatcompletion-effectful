@@ -45,7 +45,7 @@ data OpenAiSettings = OpenAiSettings
     { apiKey :: OpenAiApiKey
     , model :: Text
     , baseUrl :: Text
-    , responseLogger :: ConversationId -> ChatCompletionObject -> IO ()
+    , requestLogger :: ConversationId -> Value -> IO ()
     }
     deriving stock (Generic)
 
@@ -55,7 +55,7 @@ defaultOpenAiSettings apiKey =
         { apiKey = apiKey
         , model = "gpt-5-mini"
         , baseUrl = "https://api.openai.com"
-        , responseLogger = \_ _ -> pure ()
+        , requestLogger = \_ _ -> pure ()
         }
 
 mapContent :: (a -> b) -> Message a -> Message b
@@ -87,25 +87,24 @@ runChatCompletionOpenAi settings es = do
         -> Eff (ChatCompletion ': es) a
         -> Eff es a
     runChatCompletion createChatCompletion = interpret \_ -> \case
-        SendMessages responseFormat tools messages ->
-            sendMessagesToOpenAI createChatCompletion responseFormat tools messages
+        SendMessages convId responseFormat tools messages ->
+            sendMessagesToOpenAI convId createChatCompletion responseFormat tools messages
 
     adapt :: IO x -> Eff es x
     adapt m = liftIO m `catchAny` \e -> throwError . ProviderError . toText $ displayException e
 
     sendMessagesToOpenAI
-        :: (CreateChatCompletion -> IO ChatCompletionObject)
+        :: ConversationId
+        -> (CreateChatCompletion -> IO ChatCompletionObject)
         -> ResponseFormat
         -> [ToolDeclaration]
         -> [ChatMsg]
         -> Eff es ChatMsg
-    sendMessagesToOpenAI createChatCompletion responseFormat tools' messages = do
+    sendMessagesToOpenAI convId createChatCompletion responseFormat tools' messages = do
         let tools = fmap mkToolFromDeclaration tools'
-        response <-
-            adapt
-                . tryAny
-                . createChatCompletion
-                $ _CreateChatCompletion
+
+            req :: CreateChatCompletion
+            req = _CreateChatCompletion
                     { messages = V.fromList $ toOpenAIMessage <$> messages
                     , model = settings ^. #model . to Model
                     , tools =
@@ -125,8 +124,15 @@ runChatCompletionOpenAi settings es = do
                                         , strict = Nothing
                                         }
                     }
+        liftIO $ (settings ^. #requestLogger) convId (toJSON req)
+        response <-
+            adapt
+                . tryAny
+                $ createChatCompletion
+                $ req
         case response of
-            Left err ->
+            Left err -> do
+                liftIO $ (settings ^. #requestLogger) convId (toJSON $ displayException err)
                 throwError
                     . NetworkError
                     $ NetworkErrorDetails
@@ -134,6 +140,7 @@ runChatCompletionOpenAi settings es = do
                         , cause = toText $ displayException err
                         }
             Right chatCompletionObject -> do
+                liftIO $ (settings ^. #requestLogger) convId (toJSON chatCompletionObject)
                 now <- liftIO getCurrentTime
                 let chatMsg :: Either String ChatMsg
                     chatMsg = do

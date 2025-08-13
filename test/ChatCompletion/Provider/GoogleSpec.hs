@@ -3,6 +3,7 @@ module ChatCompletion.Provider.GoogleSpec where
 import ChatCompletion
 import ChatCompletion.Common
 import ChatCompletion.Providers.Google
+import ChatCompletion.Providers.Google.Types
 import ChatCompletion.Storage.InMemory
 import Data.Text qualified as T
 import Effectful

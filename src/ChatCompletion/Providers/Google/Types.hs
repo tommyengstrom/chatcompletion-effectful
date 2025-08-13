@@ -16,7 +16,7 @@ data GoogleSettings = GoogleSettings
     { apiKey :: GoogleApiKey
     , model :: Text
     , baseUrl :: Text
-    , responseLogger :: ConversationId -> GeminiChatResponse -> IO ()
+    , requestLogger :: ConversationId -> Value -> IO ()
     }
     deriving stock (Generic)
 
