@@ -17,7 +17,7 @@ import Data.Aeson.Key (fromText)
 import Data.Aeson.KeyMap qualified as KM
 import Data.List qualified as L
 import Data.Map qualified as Map
-import Data.OpenApi (ToSchema, toSchema)
+import Data.OpenApi (ToSchema, toInlinedSchema)
 import Data.Text qualified as Text
 import Effectful
 import Effectful.Error.Static
@@ -61,7 +61,7 @@ respondWithToolsStructured
     -> Eff es ([ChatMsg], Either String a)
 respondWithToolsStructured callback tools convId msg = do
     msgs <-
-        respondWithTools' callback (JsonSchema . toJSON . toSchema $ Proxy @a) tools convId msg
+        respondWithTools' callback (JsonSchema . toJSON . toInlinedSchema $ Proxy @a) tools convId msg
     let assistantContents :: [Text]
         assistantContents = [content | AssistantMsg{content} <- msgs]
 
