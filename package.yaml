@@ -110,7 +110,6 @@ tests:
     ghc-options: 
     - -Wwarn
     - -Wno-missing-home-modules   
-    - -fobject-code
     dependencies:
       - aeson
       - base 

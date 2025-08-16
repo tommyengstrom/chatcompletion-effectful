@@ -231,7 +231,7 @@ test-suite test-dev
       TypeFamilyDependencies
       TypeOperators
       ViewPatterns
-  ghc-options: -Weverything -Werror -Wno-all-missed-specialisations -Wno-missed-specialisations -Wno-implicit-prelude -Wno-missing-export-lists -Wno-missing-import-lists -Wno-missing-local-signatures -Wno-missing-safe-haskell-mode -Wno-prepositive-qualified-module -Wno-safe -Wno-unsafe -Wno-missing-kind-signatures -Wno-missing-poly-kind-signatures -Wno-monomorphism-restriction -Wno-missing-role-annotations -Wno-partial-fields -Wno-unused-packages -Wwarn -Wno-missing-home-modules -fobject-code
+  ghc-options: -Weverything -Werror -Wno-all-missed-specialisations -Wno-missed-specialisations -Wno-implicit-prelude -Wno-missing-export-lists -Wno-missing-import-lists -Wno-missing-local-signatures -Wno-missing-safe-haskell-mode -Wno-prepositive-qualified-module -Wno-safe -Wno-unsafe -Wno-missing-kind-signatures -Wno-missing-poly-kind-signatures -Wno-monomorphism-restriction -Wno-missing-role-annotations -Wno-partial-fields -Wno-unused-packages -Wwarn -Wno-missing-home-modules
   build-depends:
       QuickCheck
     , aeson
