@@ -30,7 +30,7 @@ runOpenAI tvar action = do
             (pure . OpenAiApiKey . T.pack)
             =<< lookupEnv "OPENAI_API_KEY"
     let settings = defaultOpenAiSettings apiKey
-                & #overrides .~ (#reasoning_effort ?~  Low)
+                & #overrides .~ (#reasoning_effort ?~  ReasoningEffort_Minimal)
     -- The handlers expect this effect order
     runEff
         . runErrorNoCallStackWith (error . show)

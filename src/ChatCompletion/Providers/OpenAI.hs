@@ -81,6 +81,8 @@ runChatCompletionOpenAi settings es = do
             makeMethods
                 clientEnv
                 (settings ^. #apiKey . typed @Text)
+                Nothing
+                Nothing
 
     runChatCompletion createChatCompletion es
   where
