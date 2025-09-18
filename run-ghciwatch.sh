@@ -18,10 +18,11 @@ echo "----------------------------------------"
 # - output redirected to log file
 ghciwatch \
   --command "cabal repl $COMPONENT " \
-  --before-startup-shell "hpack" \
+  --before-reload-shell "hpack" \
   --watch src \
   --watch test \
   --watch package.yaml \
-  --restart-glob "package.yaml" \
+  --restart-glob "**/*.cabal" \
+  --restart-glob "**/package.yaml" \
   --restart-glob "cabal.project" \
   --error-file $LOG_FILE

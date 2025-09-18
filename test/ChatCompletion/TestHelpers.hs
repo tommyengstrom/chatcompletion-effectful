@@ -26,7 +26,8 @@ respondWithToolsVerified tools convId msg = do
     streamedRef <- liftIO $ newIORef []
     let callback msg' = liftIO $ modifyIORef' streamedRef (<> [msg'])
 
-    returnedMsgs <- respondWithTools callback tools convId msg
+    appendUserMessage convId msg
+    returnedMsgs <- respondWithTools callback tools convId
     streamedMsgs <- liftIO $ readIORef streamedRef
 
     -- Verify they match
@@ -50,7 +51,8 @@ respondWithToolsStructuredVerified tools convId msg = do
     streamedRef <- liftIO $ newIORef []
     let callback msg' = liftIO $ modifyIORef' streamedRef (<> [msg'])
 
-    result <- respondWithToolsStructured callback tools convId msg
+    appendUserMessage convId msg
+    result <- respondWithToolsStructured callback tools convId
     streamedMsgs <- liftIO $ readIORef streamedRef
 
     -- Verify they match
@@ -71,7 +73,8 @@ respondWithToolsJsonVerified tools convId msg = do
     streamedRef <- liftIO $ newIORef []
     let callback msg' = liftIO $ modifyIORef' streamedRef (<> [msg'])
 
-    result <- respondWithToolsJson callback tools convId msg
+    appendUserMessage convId msg
+    result <- respondWithToolsJson callback tools convId
     streamedMsgs <- liftIO $ readIORef streamedRef
 
     -- Verify they match
