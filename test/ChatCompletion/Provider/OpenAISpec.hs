@@ -9,6 +9,8 @@ import Effectful
 import Effectful.Error.Static
 import Relude
 import Test.Hspec
+import Control.Lens
+import OpenAI.V1.Chat.Completions (ReasoningEffort(..))
 
 runOpenAI
     :: TVar (Map ConversationId [ChatMsg])
@@ -28,6 +30,7 @@ runOpenAI tvar action = do
             (pure . OpenAiApiKey . T.pack)
             =<< lookupEnv "OPENAI_API_KEY"
     let settings = defaultOpenAiSettings apiKey
+                & #overrides .~ (#reasoning_effort ?~  Low)
     -- The handlers expect this effect order
     runEff
         . runErrorNoCallStackWith (error . show)
