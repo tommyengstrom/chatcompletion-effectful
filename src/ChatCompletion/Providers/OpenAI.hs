@@ -91,7 +91,7 @@ runChatCompletionOpenAi settings es = do
             sendMessagesToOpenAI convId createChatCompletion responseFormat tools messages
 
     adapt :: IO x -> Eff es x
-    adapt m = liftIO m `catchAny` \e -> throwError . ProviderError . toText $ displayException e
+    adapt m = liftIO m `catchAny` \e -> throwError . ChatExpectationError  $ displayException e
 
     sendMessagesToOpenAI
         :: ConversationId
@@ -127,18 +127,13 @@ runChatCompletionOpenAi settings es = do
         liftIO $ (settings ^. #requestLogger) convId (toJSON req)
         response <-
             adapt
-                . tryAny
+                . try
                 $ createChatCompletion
                 $ req
         case response of
             Left err -> do
                 liftIO $ (settings ^. #requestLogger) convId (toJSON $ displayException err)
-                throwError
-                    . NetworkError
-                    $ NetworkErrorDetails
-                        { operation = "OpenAI API call"
-                        , cause = toText $ displayException err
-                        }
+                throwError $ ChatRequestError err
             Right chatCompletionObject -> do
                 liftIO $ (settings ^. #requestLogger) convId (toJSON chatCompletionObject)
                 now <- liftIO getCurrentTime
@@ -153,7 +148,7 @@ runChatCompletionOpenAi settings es = do
                         fromOpenAIMessage now openAiMsg
                 case chatMsg of
                     Right msg -> pure msg
-                    Left err -> throwError . ProviderError $ toText err
+                    Left err -> throwError $ ChatExpectationError  err
 
 toOpenAIMessage :: ChatMsg -> Message (Vector Content)
 toOpenAIMessage msg = case msg of

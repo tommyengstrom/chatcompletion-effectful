@@ -19,6 +19,7 @@ import Data.Vector qualified as V
 import Effectful
 import Effectful.Error.Static
 import Relude
+import Data.Text.Lens (unpacked)
 
 -- | Clean JSON response by removing markdown code blocks if present
 -- Google often wraps JSON responses in ```json ... ``` blocks
@@ -140,7 +141,7 @@ fromGeminiContent now content = case content ^. #role of
                 cleanedText = cleanMarkdownJson combinedText
              in if null textParts
                     then
-                        throwError $ ProviderError "Unexpected model content structure: no text or function calls"
+                        throwError $ ChatExpectationError "Unexpected model content structure: no text or function calls"
                     else
                         pure
                             $ AssistantMsg
@@ -149,10 +150,11 @@ fromGeminiContent now content = case content ^. #role of
                                 }
     _ ->
         throwError
-            $ ProviderError
+            $ ChatExpectationError
             $ "Unexpected role in response: "
             <> content
             ^. #role
+            . unpacked
   where
     isFunctionCall (GeminiFunctionCallPart _) = True
     isFunctionCall _ = False

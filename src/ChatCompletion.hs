@@ -81,8 +81,7 @@ respondWithToolsJson
     -> ConversationId
     -> Eff es ([ChatMsg], Either String Value)
 respondWithToolsJson callback tools convId = do
-    msgs <-
-        respondWithTools' callback JsonValue tools convId
+    msgs <- respondWithTools' callback JsonValue tools convId
     let assistantContents :: [Text]
         assistantContents = [content | AssistantMsg{content} <- msgs]
 
@@ -178,7 +177,7 @@ handleToolLoop callback responseFormat tools convId accumulated = do
                 (accumulated <> [response] <> newMessages)
 
         -- Unexpected response
-        _ -> throwError $ ProviderError $ "Unexpected response type: " <> show response
+        _ -> throwError $ ChatExpectationError $ "Unexpected response type: " <> show response
   where
     toToolDeclaration tool =
         ToolDeclaration
