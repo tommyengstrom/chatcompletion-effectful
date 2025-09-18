@@ -49,6 +49,7 @@ data ChatMsgIn
         }
     | UserMsgIn
         { content :: Text
+        , hidden :: Bool
         }
     | AssistantMsgIn
         { content :: Text
@@ -70,6 +71,7 @@ data ChatMsg
         }
     | UserMsg
         { content :: Text
+        , hidden :: Bool
         , createdAt :: UTCTime
         }
     | AssistantMsg

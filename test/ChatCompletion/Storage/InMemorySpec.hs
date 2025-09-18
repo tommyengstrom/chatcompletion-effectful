@@ -88,8 +88,8 @@ specGeneralized runStorage = do
                     convIds <- listConversations
                     convId <- liftIO . generate $ elements convIds
                     conv <- getConversation convId
-                    appendMessage convId (UserMsgIn userPrompt1)
-                    appendMessage convId (UserMsgIn userPrompt2)
+                    appendUserMessage convId  userPrompt1
+                    appendUserMessage convId  userPrompt2
                     (conv,) <$> getConversation convId
                 liftIO $ length beforeAppend + 2 `shouldBe` length afterAppend
                 liftIO $

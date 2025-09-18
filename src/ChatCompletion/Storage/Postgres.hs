@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module ChatCompletion.Storage.Postgres where
 
@@ -95,12 +96,12 @@ instance FromRow MessageRow where
 
 -- Helper function to convert ChatMsgIn to ChatMsg with timestamp
 chatMsgFromIn :: ChatMsgIn -> UTCTime -> ChatMsg
-chatMsgFromIn msgIn timestamp = case msgIn of
-    SystemMsgIn content -> SystemMsg content timestamp
-    UserMsgIn content -> UserMsg content timestamp
-    AssistantMsgIn content -> AssistantMsg content timestamp
-    ToolCallMsgIn toolCalls -> ToolCallMsg toolCalls timestamp
-    ToolCallResponseMsgIn toolCallId toolResponse -> ToolCallResponseMsg toolCallId toolResponse timestamp
+chatMsgFromIn msgIn createdAt = case msgIn of
+    SystemMsgIn {..} -> SystemMsg {..}
+    UserMsgIn {..} -> UserMsg {..}
+    AssistantMsgIn {..} -> AssistantMsg {..}
+    ToolCallMsgIn {..} -> ToolCallMsg {..}
+    ToolCallResponseMsgIn {..}  -> ToolCallResponseMsg {..}
 
 -- | Check if a connection is healthy
 isHealthyConnection :: Connection -> IO Bool

@@ -22,14 +22,6 @@ import Effectful.Error.Static
 import Relude
 
 -- | Send a user message and get response (no tool handling)
-appendUserMessage
-    :: ChatCompletionStorage :> es
-    => ConversationId
-    -> Text
-    -> Eff es ()
-appendUserMessage convId content = do
-    let userMsgIn = UserMsgIn{content}
-    appendMessage convId userMsgIn
 
 -- | Send a user message and handle any tool calls automatically
 respondWithTools

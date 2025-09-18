@@ -55,7 +55,7 @@ defaultOpenAiSettings apiKey =
     OpenAiSettings
         { apiKey = apiKey
         , baseUrl = "https://api.openai.com"
-        , model =  "gpt-5-mini"
+        , model =  "gpt-5-nano"
         , overrides = Relude.id
         , requestLogger = \_ _ -> pure ()
         }

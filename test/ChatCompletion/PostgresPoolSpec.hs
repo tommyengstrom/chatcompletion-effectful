@@ -59,7 +59,7 @@ spec = describe "PostgreSQL Connection Pooling" $ do
                     $ do
                         -- Each concurrent operation creates and uses a conversation
                         convId <- createConversation $ "Test system prompt " <> show i
-                        appendMessage convId $ UserMsgIn $ "User message " <> show i
+                        appendUserMessage convId  $ "User message " <> show i
                         appendMessage convId $ AssistantMsgIn $ "Assistant response " <> show i
                         msgs <- getConversation convId
                         pure (length msgs)
@@ -107,7 +107,7 @@ spec = describe "PostgreSQL Connection Pooling" $ do
                 . runErrorNoCallStackWith @ChatStorageError (error . show)
                 $ runChatCompletionStoragePostgresWithPool testConfig do
                     convId <- createConversation "Backward compatible test"
-                    appendMessage convId $ UserMsgIn "Test message"
+                    appendUserMessage convId  "Test message"
                     msgs <- getConversation convId
                     pure (convId, length msgs)
 
