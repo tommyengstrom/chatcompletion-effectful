@@ -31,30 +31,32 @@ import OpenAI.V1.Chat.Completions
     , Message (..)
     , _CreateChatCompletion
     )
-import OpenAI.V1.Models (Model (..))
 import OpenAI.V1.ResponseFormat qualified as RF
 import OpenAI.V1.Tool qualified as OpenAiTool
 import OpenAI.V1.ToolCall qualified as OpenAiTC
 import Relude
 import UnliftIO
+import OpenAI.V1.Models (Model(..))
 
 newtype OpenAiApiKey = OpenAiApiKey Text
     deriving stock (Show, Eq, Ord, Generic)
 
-data OpenAiSettings = OpenAiSettings
+data OpenAiSettings es = OpenAiSettings
     { apiKey :: OpenAiApiKey
-    , model :: Text
     , baseUrl :: Text
-    , requestLogger :: ConversationId -> Value -> IO ()
+    , model :: Model
+    , overrides :: CreateChatCompletion -> CreateChatCompletion
+    , requestLogger :: ConversationId -> Value -> Eff es ()
     }
     deriving stock (Generic)
 
-defaultOpenAiSettings :: OpenAiApiKey -> OpenAiSettings
+defaultOpenAiSettings :: OpenAiApiKey -> OpenAiSettings es
 defaultOpenAiSettings apiKey =
     OpenAiSettings
         { apiKey = apiKey
-        , model = "gpt-5-mini"
         , baseUrl = "https://api.openai.com"
+        , model =  "gpt-5-mini"
+        , overrides = Relude.id
         , requestLogger = \_ _ -> pure ()
         }
 
@@ -70,7 +72,7 @@ runChatCompletionOpenAi
      . ( IOE :> es
        , Error ChatCompletionError :> es
        )
-    => OpenAiSettings
+    => OpenAiSettings es
     -> Eff (ChatCompletion ': es) a
     -> Eff es a
 runChatCompletionOpenAi settings es = do
@@ -104,14 +106,13 @@ runChatCompletionOpenAi settings es = do
         let tools = fmap mkToolFromDeclaration tools'
 
             req :: CreateChatCompletion
-            req = _CreateChatCompletion
-                    { messages = V.fromList $ toOpenAIMessage <$> messages
-                    , model = settings ^. #model . to Model
-                    , tools =
-                        if null tools
-                            then Nothing
-                            else Just (V.fromList tools)
-                    , response_format = case responseFormat of
+            req = (settings ^. #overrides) _CreateChatCompletion
+                    & #messages .~ V.fromList (toOpenAIMessage <$> messages)
+                    & #model .~ settings ^. #model
+                    & (case tools of
+                        [] -> Relude.id
+                        _ -> #tools ?~ V.fromList tools)
+                    & #response_format .~ case responseFormat of
                         Unstructured -> Nothing
                         JsonValue -> Just RF.JSON_Object
                         JsonSchema schema ->
@@ -123,8 +124,7 @@ runChatCompletionOpenAi settings es = do
                                         , schema = Just schema
                                         , strict = Nothing
                                         }
-                    }
-        liftIO $ (settings ^. #requestLogger) convId (toJSON req)
+        (settings ^. #requestLogger) convId (toJSON req)
         response <-
             adapt
                 . try
@@ -132,10 +132,10 @@ runChatCompletionOpenAi settings es = do
                 $ req
         case response of
             Left err -> do
-                liftIO $ (settings ^. #requestLogger) convId (toJSON $ displayException err)
+                (settings ^. #requestLogger) convId (toJSON $ displayException err)
                 throwError $ ChatRequestError err
             Right chatCompletionObject -> do
-                liftIO $ (settings ^. #requestLogger) convId (toJSON chatCompletionObject)
+                (settings ^. #requestLogger) convId (toJSON chatCompletionObject)
                 now <- liftIO getCurrentTime
                 let chatMsg :: Either String ChatMsg
                     chatMsg = do
