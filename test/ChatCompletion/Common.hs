@@ -83,7 +83,14 @@ respondWithToolsJsonVerified tools convId msg = do
 specWithProvider
     :: ( forall a
           . TVar (Map ConversationId [ChatMsg])
-         -> Eff '[ChatCompletion, ChatCompletionStorage, Error ChatCompletionError, IOE] a
+         -> Eff
+                '[ ChatCompletion
+                 , ChatCompletionStorage
+                 , Error ChatStorageError
+                 , Error ChatCompletionError
+                 , IOE
+                 ]
+                a
          -> IO a
        )
     -> Spec
@@ -112,7 +119,8 @@ specWithProvider runProvider = do
             convId <-
                 createConversation
                     "You are the users assistant. When asked about contacts or phone numbers, use the available tools to find the information."
-            msgs <- respondWithToolsVerified [listContacts] convId "What is my friend John's last name?"
+            msgs <-
+                respondWithToolsVerified [listContacts] convId "What is my friend John's last name?"
             pure msgs
         response
             `shouldSatisfy` any
@@ -127,7 +135,10 @@ specWithProvider runProvider = do
                 createConversation
                     "You are the users assistant, always trying to help them without first clearifying what they want. When asked about contacts or phone numbers, use the available tools to find the information."
             msgs <-
-                respondWithToolsVerified [listContacts, showPhoneNumber] convId "What is John's phone number?"
+                respondWithToolsVerified
+                    [listContacts, showPhoneNumber]
+                    convId
+                    "What is John's phone number?"
             pure msgs
         response
             `shouldSatisfy` any
@@ -226,12 +237,12 @@ listContacts =
     defineToolNoArgument
         "list_contact"
         "List all the contacts of the user."
-        ( pure
-            $ Right
-            $ ToolResponse
-                { modelResponse = "Contacts:\n" <> T.intercalate "\n- " contacts
-                , localResponse = [UIComponent $ toJSON contacts]
-                }
+        ( pure $
+            Right $
+                ToolResponse
+                    { modelResponse = "Contacts:\n" <> T.intercalate "\n- " contacts
+                    , localResponse = [UIComponent $ toJSON contacts]
+                    }
         )
   where
     contacts :: [Text]
@@ -250,12 +261,12 @@ showPhoneNumber =
         "Show the phone number of a contact. Must use full name for lookup, as given by `list_contact`."
         ( \case
             FullName "John Snow" ->
-                pure
-                    $ Right
-                    $ ToolResponse
-                        { modelResponse = "Phone number: 123-456-7890"
-                        , localResponse = [UIComponent $ toJSON ("123-456-7890" :: Text)]
-                        }
+                pure $
+                    Right $
+                        ToolResponse
+                            { modelResponse = "Phone number: 123-456-7890"
+                            , localResponse = [UIComponent $ toJSON ("123-456-7890" :: Text)]
+                            }
             FullName n -> pure $ Left $ "No phone number for contact: " <> T.unpack n
         )
 

@@ -3,6 +3,7 @@ module ChatCompletion.Storage.Effect where
 import ChatCompletion.Types
 import Effectful
 import Effectful.TH
+import Prelude
 
 data ChatCompletionStorage :: Effect where
     CreateConversation :: SystemPrompt -> ChatCompletionStorage m ConversationId
@@ -14,3 +15,10 @@ data ChatCompletionStorage :: Effect where
 type instance DispatchOf ChatCompletionStorage = 'Dynamic
 
 makeEffect ''ChatCompletionStorage
+
+
+
+
+data ChatStorageError
+    = NoSuchConversation ConversationId
+    deriving stock (Show, Eq)

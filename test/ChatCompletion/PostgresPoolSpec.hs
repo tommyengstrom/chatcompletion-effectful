@@ -41,8 +41,8 @@ spec = describe "PostgreSQL Connection Pooling" $ do
         runIO do
             cleanup
             setupTableWithPool config
-        afterAll_ cleanup
-            $ specGeneralized (runChatCompletionStoragePostgresWithPool config)
+        afterAll_ cleanup $
+            specGeneralized (runChatCompletionStoragePostgresWithPool config)
 
     describe "Connection pool behavior" $ do
         it "handles concurrent operations efficiently" $ do
@@ -52,13 +52,17 @@ spec = describe "PostgreSQL Connection Pooling" $ do
 
             -- Run multiple concurrent operations
             results <- forConcurrently ([1 .. 20] :: [Int]) $ \i -> do
-                runEff $ runError @ChatCompletionError $ runChatCompletionStoragePostgresWithPool config $ do
-                    -- Each concurrent operation creates and uses a conversation
-                    convId <- createConversation $ "Test system prompt " <> show i
-                    appendMessage convId $ UserMsgIn $ "User message " <> show i
-                    appendMessage convId $ AssistantMsgIn $ "Assistant response " <> show i
-                    msgs <- getConversation convId
-                    pure (length msgs)
+                runEff
+                    . runError @ChatCompletionError
+                    . runErrorNoCallStackWith @ChatStorageError (error . show)
+                    $ runChatCompletionStoragePostgresWithPool config
+                    $ do
+                        -- Each concurrent operation creates and uses a conversation
+                        convId <- createConversation $ "Test system prompt " <> show i
+                        appendMessage convId $ UserMsgIn $ "User message " <> show i
+                        appendMessage convId $ AssistantMsgIn $ "Assistant response " <> show i
+                        msgs <- getConversation convId
+                        pure (length msgs)
 
             -- Check all results succeeded with 3 messages each
             forM_ results $ \result -> case result of
@@ -98,11 +102,14 @@ spec = describe "PostgreSQL Connection Pooling" $ do
             setupTableWithPool testConfig
 
             -- Test using the backward compatible function with our test table
-            result <- runEff $ runError @ChatCompletionError $ runChatCompletionStoragePostgresWithPool testConfig $ do
-                convId <- createConversation "Backward compatible test"
-                appendMessage convId $ UserMsgIn "Test message"
-                msgs <- getConversation convId
-                pure (convId, length msgs)
+            result <- runEff
+                . runError @ChatCompletionError
+                . runErrorNoCallStackWith @ChatStorageError (error . show)
+                $ runChatCompletionStoragePostgresWithPool testConfig do
+                    convId <- createConversation "Backward compatible test"
+                    appendMessage convId $ UserMsgIn "Test message"
+                    msgs <- getConversation convId
+                    pure (convId, length msgs)
 
             case result of
                 Left err -> expectationFailure $ "Unexpected error: " <> show err

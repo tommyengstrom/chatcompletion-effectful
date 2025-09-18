@@ -4,7 +4,6 @@
 
 module ChatCompletion.Error where
 
-import ChatCompletion.Types (ConversationId)
 import Control.Concurrent (threadDelay)
 import Control.Lens hiding ((.=))
 import Data.Aeson (FromJSON, ToJSON)
@@ -24,7 +23,6 @@ data ChatCompletionError
     | RateLimitError RateLimitDetails
     | ParseError ParseErrorDetails
     | NetworkError NetworkErrorDetails
-    | StorageError StorageErrorDetails
     | ProviderError Text
     deriving stock (Show, Eq, Generic)
     deriving anyclass (ToJSON, FromJSON)
@@ -57,13 +55,6 @@ data NetworkErrorDetails = NetworkErrorDetails
     { operation :: Text
     , cause :: Text
     }
-    deriving stock (Show, Eq, Generic)
-    deriving anyclass (ToJSON, FromJSON)
-
-data StorageErrorDetails
-    = NoSuchConversation ConversationId
-    | StorageConnectionFailed Text
-    | StorageQueryFailed Text
     deriving stock (Show, Eq, Generic)
     deriving anyclass (ToJSON, FromJSON)
 

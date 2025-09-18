@@ -2,7 +2,6 @@
 
 module ChatCompletion.Storage.InMemory where
 
-import ChatCompletion.Error (ChatCompletionError (..), StorageErrorDetails (..))
 import ChatCompletion.Storage.Effect
 import ChatCompletion.Types
 import Data.Map.Strict (Map)
@@ -16,10 +15,11 @@ import Effectful.Error.Static
 import UnliftIO
 import Prelude
 
+
 runChatCompletionStorageInMemory
     :: forall es a
      . ( IOE :> es
-       , Error ChatCompletionError :> es
+       , Error ChatStorageError :> es
        )
     => TVar (Map ConversationId [ChatMsg])
     -> Eff (ChatCompletionStorage ': es) a
@@ -37,7 +37,7 @@ runChatCompletionStorageInMemory tvar = interpret \_ -> \case
         conversations <- readTVarIO tvar
         let conv = Map.lookup conversationId conversations
         case conv of
-            Nothing -> throwError $ StorageError $ NoSuchConversation conversationId
+            Nothing -> throwError $  NoSuchConversation conversationId
             Just c -> pure c
     AppendMessage conversationId msgIn -> do
         msg <- toChatMsg msgIn

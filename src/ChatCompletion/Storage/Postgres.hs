@@ -2,7 +2,6 @@
 
 module ChatCompletion.Storage.Postgres where
 
-import ChatCompletion.Error (ChatCompletionError (..), StorageErrorDetails (..))
 import ChatCompletion.Storage.Effect
 import ChatCompletion.Types
 import Control.Lens
@@ -22,6 +21,7 @@ import Effectful.Dispatch.Dynamic
 import Effectful.Error.Static
 import Relude
 import UnliftIO (finally, try)
+
 
 -- | Configuration for PostgreSQL connection pooling
 data PostgresConfig = PostgresConfig
@@ -177,7 +177,7 @@ withPostgresPool config action = do
 runChatCompletionStoragePostgres
     :: forall es a
      . ( IOE :> es
-       , Error ChatCompletionError :> es
+       , Error ChatStorageError :> es
        )
     => PostgresSettings
     -> Eff (ChatCompletionStorage ': es) a
@@ -207,7 +207,7 @@ runChatCompletionStoragePostgres settings eff = do
                 query conn (selectMessagesQuery settings) (Only conversationId)
             liftIO $ close conn
             case result of
-                [] -> throwError $ StorageError $ NoSuchConversation conversationId
+                [] -> throwError $ NoSuchConversation conversationId
                 rows -> pure $ map (\(MessageRow _ _ msgIn createdAt) -> chatMsgFromIn msgIn createdAt) rows
         AppendMessage conversationId msgIn -> liftIO do
             conn <- settings ^. #getConnection
@@ -233,7 +233,7 @@ runChatCompletionStoragePostgres settings eff = do
 runChatCompletionStoragePostgresWithPool
     :: forall es a
      . ( IOE :> es
-       , Error ChatCompletionError :> es
+       , Error ChatStorageError :> es
        )
     => PostgresConfig
     -> Eff (ChatCompletionStorage ': es) a
@@ -274,7 +274,7 @@ runChatCompletionStoragePostgresWithPool config eff = do
                         (selectMessagesQuery (PostgresSettings (pure conn) (config ^. #conversationsTable)))
                         (Only conversationId)
             case result of
-                [] -> throwError $ StorageError $ NoSuchConversation conversationId
+                [] -> throwError $ NoSuchConversation conversationId
                 rows -> pure $ map (\(MessageRow _ _ msgIn createdAt) -> chatMsgFromIn msgIn createdAt) rows
         AppendMessage conversationId msgIn -> liftIO $ withPooledConnection pool' $ \conn -> do
             withTransaction conn $ do
@@ -308,7 +308,7 @@ runChatCompletionStoragePostgresWithPool config eff = do
 runChatCompletionStoragePostgres'
     :: forall es a
      . ( IOE :> es
-       , Error ChatCompletionError :> es
+       , Error ChatStorageError :> es
        )
     => ByteString
     -> Eff (ChatCompletionStorage ': es) a

@@ -13,7 +13,14 @@ import Test.Hspec
 
 runGoogle
     :: TVar (Map ConversationId [ChatMsg])
-    -> Eff '[ChatCompletion, ChatCompletionStorage, Error ChatCompletionError, IOE] a
+    -> Eff
+        '[ ChatCompletion
+         , ChatCompletionStorage
+         , Error ChatStorageError
+         , Error ChatCompletionError
+         , IOE
+         ]
+        a
     -> IO a
 runGoogle tvar action = do
     apiKey <-
@@ -22,11 +29,12 @@ runGoogle tvar action = do
             (pure . GoogleApiKey . T.pack)
             =<< lookupEnv "GEMINI_API_KEY"
     let settings = defaultGoogleSettings apiKey
-    runEff
-        $ runErrorNoCallStackWith (error . show)
-        $ runChatCompletionStorageInMemory tvar
-        $ runChatCompletionGoogle settings
-        $ action
+    runEff $
+        runErrorNoCallStackWith (error . show) $
+            runErrorNoCallStackWith @ChatStorageError (error . show) $
+                runChatCompletionStorageInMemory tvar $
+                    runChatCompletionGoogle settings $
+                        action
 
 spec :: Spec
 spec = describe "ChatCompletion Provider - Google" $ do

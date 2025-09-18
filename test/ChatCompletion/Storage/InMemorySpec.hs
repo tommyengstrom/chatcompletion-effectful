@@ -2,7 +2,6 @@
 
 module ChatCompletion.Storage.InMemorySpec where
 
-import ChatCompletion.Error (ChatCompletionError (..), StorageErrorDetails (..))
 import ChatCompletion.Storage.Effect
 import ChatCompletion.Storage.InMemory
 import ChatCompletion.Types
@@ -21,16 +20,20 @@ import Test.QuickCheck.Monadic
 
 instance Arbitrary ConversationId where
     arbitrary =
-        fmap ConversationId
-            $ fromWords
-            <$> arbitraryBoundedIntegral
-            <*> arbitraryBoundedIntegral
-            <*> arbitraryBoundedIntegral
-            <*> arbitraryBoundedIntegral
+        fmap ConversationId $
+            fromWords
+                <$> arbitraryBoundedIntegral
+                <*> arbitraryBoundedIntegral
+                <*> arbitraryBoundedIntegral
+                <*> arbitraryBoundedIntegral
 
 runEffStack
-    :: Eff '[Error ChatCompletionError, IOE] a
-    -> IO (Either ChatCompletionError a)
+    :: Eff
+        '[ Error ChatStorageError
+         , IOE
+         ]
+        a
+    -> IO (Either ChatStorageError a)
 runEffStack = runEff . runErrorNoCallStack
 
 data SomeText = SomeText Text
@@ -45,8 +48,8 @@ spec =
 
 specGeneralized
     :: ( forall a
-          . Eff (ChatCompletionStorage ': '[Error ChatCompletionError, IOE]) a
-         -> Eff '[Error ChatCompletionError, IOE] a
+          . Eff (ChatCompletionStorage ': '[Error ChatStorageError, IOE]) a
+         -> Eff '[Error ChatStorageError, IOE] a
        )
     -> Spec
 specGeneralized runStorage = do
@@ -58,7 +61,7 @@ specGeneralized runStorage = do
                         . runEffStack
                         . runStorage
                         $ getConversation convId
-                liftIO $ result `shouldBe` Left (StorageError $ NoSuchConversation convId)
+                liftIO $ result `shouldBe` Left (NoSuchConversation convId)
         it "Can retreive conversation after creating it" $ do
             property $ \(SomeText systemPrompt) -> monadicIO $ do
                 Right conv <- run . runEffStack $ runStorage do
@@ -76,11 +79,11 @@ specGeneralized runStorage = do
                         listBefore <- listConversations
                         convId <- createConversation systemPrompt
                         (listBefore,convId,) <$> listConversations
-                liftIO
-                    $ Set.difference (Set.fromList listAfter) (Set.fromList listBefore)
-                    `shouldBe` [convId]
-        it "AppendMessage adds messages to the end of the conversation"
-            $ property \(SomeText userPrompt1) (SomeText userPrompt2) -> monadicIO do
+                liftIO $
+                    Set.difference (Set.fromList listAfter) (Set.fromList listBefore)
+                        `shouldBe` [convId]
+        it "AppendMessage adds messages to the end of the conversation" $
+            property \(SomeText userPrompt1) (SomeText userPrompt2) -> monadicIO do
                 Right (beforeAppend, afterAppend) <- run $ runEffStack $ runStorage $ do
                     convIds <- listConversations
                     convId <- liftIO . generate $ elements convIds
@@ -89,10 +92,10 @@ specGeneralized runStorage = do
                     appendMessage convId (UserMsgIn userPrompt2)
                     (conv,) <$> getConversation convId
                 liftIO $ length beforeAppend + 2 `shouldBe` length afterAppend
-                liftIO
-                    $ afterAppend
-                    ^.. reversed . taking 2 folded . _Ctor @"UserMsg" . typed @Text
-                    `shouldBe` [userPrompt2, userPrompt1]
+                liftIO $
+                    afterAppend
+                        ^.. reversed . taking 2 folded . _Ctor @"UserMsg" . typed @Text
+                        `shouldBe` [userPrompt2, userPrompt1]
         it "GetConversation errors if conversation does not exist" $ do
             property $ \(convId :: ConversationId) -> monadicIO $ do
                 result <-
@@ -100,4 +103,4 @@ specGeneralized runStorage = do
                         . runEffStack
                         . runStorage
                         $ getConversation convId
-                liftIO $ result `shouldBe` Left (StorageError $ NoSuchConversation convId)
+                liftIO $ result `shouldBe` Left (NoSuchConversation convId)
