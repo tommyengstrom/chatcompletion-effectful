@@ -1,10 +1,7 @@
+{-# LANGUAGE RecordWildCards #-}
 module ChatCompletion
     ( module X
-    , appendUserMessage
-    , respondWithTools
-    , executeToolCalls
-    , respondWithToolsStructured
-    , respondWithToolsJson
+    , module ChatCompletion
     ) where
 
 import ChatCompletion.Effect as X
@@ -187,11 +184,12 @@ handleToolLoop callback responseFormat tools convId accumulated = do
             , description = tool ^. #description
             , parameterSchema = tool ^. #parameterSchema
             }
+chatMsgToIn :: ChatMsg -> ChatMsgIn
+chatMsgToIn = \case
+    SystemMsg {..} -> SystemMsgIn {..}
+    UserMsg {..} ->  UserMsgIn {..}
+    AssistantMsg {..} ->  AssistantMsgIn {..}
+    ToolCallMsg {..} ->  ToolCallMsgIn {..}
+    ToolCallResponseMsg {..} ->  ToolCallResponseMsgIn {..}
 
-    chatMsgToIn :: ChatMsg -> ChatMsgIn
-    chatMsgToIn = \case
-        SystemMsg content _ -> SystemMsgIn content
-        UserMsg content _ -> UserMsgIn content
-        AssistantMsg content _ -> AssistantMsgIn content
-        ToolCallMsg toolCalls _ -> ToolCallMsgIn toolCalls
-        ToolCallResponseMsg toolCallId toolResponse _ -> ToolCallResponseMsgIn toolCallId toolResponse
+

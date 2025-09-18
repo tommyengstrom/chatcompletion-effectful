@@ -1,7 +1,7 @@
 module ChatCompletion.Provider.GoogleSpec where
 
 import ChatCompletion
-import ChatCompletion.Common
+import ChatCompletion.TestHelpers
 import ChatCompletion.Providers.Google
 import ChatCompletion.Providers.Google.Types
 import ChatCompletion.Storage.InMemory

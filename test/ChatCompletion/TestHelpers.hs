@@ -1,4 +1,4 @@
-module ChatCompletion.Common where
+module ChatCompletion.TestHelpers where
 
 import ChatCompletion
 import Control.Lens (folded, (^..))
@@ -270,11 +270,3 @@ showPhoneNumber =
             FullName n -> pure $ Left $ "No phone number for contact: " <> T.unpack n
         )
 
--- Helper function to convert ChatMsg to ChatMsgIn
-chatMsgToIn :: ChatMsg -> ChatMsgIn
-chatMsgToIn = \case
-    SystemMsg content _ -> SystemMsgIn content
-    UserMsg content _ -> UserMsgIn content
-    AssistantMsg content _ -> AssistantMsgIn content
-    ToolCallMsg toolCalls _ -> ToolCallMsgIn toolCalls
-    ToolCallResponseMsg toolCallId toolResponse _ -> ToolCallResponseMsgIn toolCallId toolResponse

@@ -1,7 +1,7 @@
 module ChatCompletion.Provider.OpenAISpec where
 
 import ChatCompletion
-import ChatCompletion.Common
+import ChatCompletion.TestHelpers
 import ChatCompletion.Providers.OpenAI
 import ChatCompletion.Storage.InMemory
 import Data.Text qualified as T

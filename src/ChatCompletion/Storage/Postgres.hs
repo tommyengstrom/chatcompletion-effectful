@@ -92,14 +92,6 @@ data MessageRow = MessageRow
 instance FromRow MessageRow where
     fromRow = MessageRow <$> PG.field <*> PG.field <*> PG.field <*> PG.field
 
--- Helper function to convert ChatMsg to ChatMsgIn
-chatMsgToIn :: ChatMsg -> ChatMsgIn
-chatMsgToIn = \case
-    SystemMsg content _ -> SystemMsgIn content
-    UserMsg content _ -> UserMsgIn content
-    AssistantMsg content _ -> AssistantMsgIn content
-    ToolCallMsg toolCalls _ -> ToolCallMsgIn toolCalls
-    ToolCallResponseMsg toolCallId toolResponse _ -> ToolCallResponseMsgIn toolCallId toolResponse
 
 -- Helper function to convert ChatMsgIn to ChatMsg with timestamp
 chatMsgFromIn :: ChatMsgIn -> UTCTime -> ChatMsg

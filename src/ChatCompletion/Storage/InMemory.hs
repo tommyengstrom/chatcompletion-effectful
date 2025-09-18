@@ -51,8 +51,8 @@ toChatMsg :: IOE :> es => ChatMsgIn -> Eff es ChatMsg
 toChatMsg msgIn = do
     createdAt <- liftIO getCurrentTime
     pure case msgIn of
+        SystemMsgIn {..} -> SystemMsg {..}
         UserMsgIn{..} -> UserMsg{..}
-        SystemMsgIn{..} -> SystemMsg{..}
         AssistantMsgIn{..} -> AssistantMsg{..}
         ToolCallMsgIn{..} -> ToolCallMsg{..}
         ToolCallResponseMsgIn{..} -> ToolCallResponseMsg{..}

@@ -21,7 +21,7 @@ data BenchmarkResult = BenchmarkResult
 
 -- Format benchmark results for display
 formatBenchmarkResult :: BenchmarkResult -> Text
-formatBenchmarkResult BenchmarkResult{..} = 
+formatBenchmarkResult BenchmarkResult{..} =
     if simpleMessageTime == 0 && toolCallTime == 0 && sequentialToolsTime == 0
     then ""  -- Don't print summary for failed benchmarks
     else T.unlines
@@ -43,15 +43,6 @@ timeAction action = do
     pure (diffUTCTime end start, result)
 
 -- Benchmark scenarios (this function is not used, actual benchmarks are in provider modules)
-
--- Helper to convert ChatMsg to ChatMsgIn
-chatMsgToIn :: ChatMsg -> ChatMsgIn
-chatMsgToIn = \case
-    SystemMsg content _ -> SystemMsgIn content
-    UserMsg content _ -> UserMsgIn content
-    AssistantMsg content _ -> AssistantMsgIn content
-    ToolCallMsg toolCalls _ -> ToolCallMsgIn toolCalls
-    ToolCallResponseMsg toolCallId toolResponse _ -> ToolCallResponseMsgIn toolCallId toolResponse
 
 -- Test tools (copied from integration tests)
 listContacts :: ToolDef es

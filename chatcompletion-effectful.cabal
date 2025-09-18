@@ -106,13 +106,13 @@ test-suite chatcompletion-effectful-test
   type: exitcode-stdio-1.0
   main-is: Main.hs
   other-modules:
-      ChatCompletion.Common
       ChatCompletion.PostgresLoggerSpec
       ChatCompletion.PostgresPoolSpec
       ChatCompletion.PostgresSpec
       ChatCompletion.Provider.GoogleSpec
       ChatCompletion.Provider.OpenAISpec
       ChatCompletion.Storage.InMemorySpec
+      ChatCompletion.TestHelpers
       Paths_chatcompletion_effectful
   autogen-modules:
       Paths_chatcompletion_effectful
@@ -193,13 +193,13 @@ test-suite test-dev
       ChatCompletion.Storage.Postgres
       ChatCompletion.Tool
       ChatCompletion.Types
-      ChatCompletion.Common
       ChatCompletion.PostgresLoggerSpec
       ChatCompletion.PostgresPoolSpec
       ChatCompletion.PostgresSpec
       ChatCompletion.Provider.GoogleSpec
       ChatCompletion.Provider.OpenAISpec
       ChatCompletion.Storage.InMemorySpec
+      ChatCompletion.TestHelpers
       Paths_chatcompletion_effectful
   autogen-modules:
       Paths_chatcompletion_effectful
