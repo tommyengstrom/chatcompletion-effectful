@@ -46,7 +46,7 @@ data OpenAiSettings es = OpenAiSettings
     , baseUrl :: Text
     , model :: Model
     , overrides :: CreateChatCompletion -> CreateChatCompletion
-    , requestLogger :: ConversationId -> Value -> Eff es ()
+    , requestLogger :: Value -> Eff es ()
     }
     deriving stock (Generic)
 
@@ -57,7 +57,7 @@ defaultOpenAiSettings apiKey =
         , baseUrl = "https://api.openai.com"
         , model =  "gpt-5-nano"
         , overrides = Relude.id
-        , requestLogger = \_ _ -> pure ()
+        , requestLogger = \_ -> pure ()
         }
 
 mapContent :: (a -> b) -> Message a -> Message b
@@ -91,20 +91,19 @@ runChatCompletionOpenAi settings es = do
         -> Eff (ChatCompletion ': es) a
         -> Eff es a
     runChatCompletion createChatCompletion = interpret \_ -> \case
-        SendMessages convId responseFormat tools messages ->
-            sendMessagesToOpenAI convId createChatCompletion responseFormat tools messages
+        SendMessages responseFormat tools messages ->
+            sendMessagesToOpenAI createChatCompletion responseFormat tools messages
 
     adapt :: IO x -> Eff es x
     adapt m = liftIO m `catchAny` \e -> throwError . ChatExpectationError  $ displayException e
 
     sendMessagesToOpenAI
-        :: ConversationId
-        -> (CreateChatCompletion -> IO ChatCompletionObject)
+        :: (CreateChatCompletion -> IO ChatCompletionObject)
         -> ResponseFormat
         -> [ToolDeclaration]
         -> [ChatMsg]
         -> Eff es ChatMsg
-    sendMessagesToOpenAI convId createChatCompletion responseFormat tools' messages = do
+    sendMessagesToOpenAI createChatCompletion responseFormat tools' messages = do
         let tools = fmap mkToolFromDeclaration tools'
 
             req :: CreateChatCompletion
@@ -126,7 +125,7 @@ runChatCompletionOpenAi settings es = do
                                         , schema = Just schema
                                         , strict = Nothing
                                         }
-        (settings ^. #requestLogger) convId (toJSON req)
+        (settings ^. #requestLogger) (toJSON req)
         response <-
             adapt
                 . try
@@ -134,10 +133,10 @@ runChatCompletionOpenAi settings es = do
                 $ req
         case response of
             Left err -> do
-                (settings ^. #requestLogger) convId (toJSON $ displayException err)
+                (settings ^. #requestLogger) (toJSON $ displayException err)
                 throwError $ ChatRequestError err
             Right chatCompletionObject -> do
-                (settings ^. #requestLogger) convId (toJSON chatCompletionObject)
+                (settings ^. #requestLogger) (toJSON chatCompletionObject)
                 now <- liftIO getCurrentTime
                 let chatMsg :: Either String ChatMsg
                     chatMsg = do

@@ -108,7 +108,7 @@ specWithProvider runProvider = do
                 createConversation "Act exactly as a simple calculator. No extra text, just the answer."
             appendUserMessage convId "2 + 2"
             messages <- getConversation convId
-            resp <- sendMessages convId Unstructured [] messages
+            resp <- sendMessages Unstructured [] messages
             appendMessage convId (chatMsgToIn resp)
             conv <- getConversation convId
             pure (resp, conv)

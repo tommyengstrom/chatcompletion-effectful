@@ -2,7 +2,6 @@
 
 module ChatCompletion.Providers.Google.Types where
 
-import ChatCompletion.Types (ConversationId)
 import Data.Aeson
 import Data.Vector (Vector)
 import Relude
@@ -16,7 +15,7 @@ data GoogleSettings = GoogleSettings
     { apiKey :: GoogleApiKey
     , model :: Text
     , baseUrl :: Text
-    , requestLogger :: ConversationId -> Value -> IO ()
+    , requestLogger :: Value -> IO ()
     }
     deriving stock (Generic)
 

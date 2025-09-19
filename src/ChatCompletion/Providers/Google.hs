@@ -31,7 +31,7 @@ defaultGoogleSettings apiKey =
         { apiKey = apiKey
         , model = "gemini-2.5-flash"
         , baseUrl = "https://generativelanguage.googleapis.com"
-        , requestLogger = \_ _ -> pure ()
+        , requestLogger = \_ -> pure ()
         }
 
 -- | Run the ChatCompletion effect using Google's Gemini API
@@ -59,8 +59,8 @@ runChatCompletionGoogle settings es = do
         -> Eff (ChatCompletion ': es) a
         -> Eff es a
     runChatCompletion generateContent clientEnv = interpret \_ -> \case
-        SendMessages convId responseFormat tools messages ->
-            sendMessagesToGemini convId generateContent clientEnv responseFormat tools messages
+        SendMessages responseFormat tools messages ->
+            sendMessagesToGemini generateContent clientEnv responseFormat tools messages
 
     adapt :: ClientEnv -> ClientM x -> Eff es x
     adapt env m = do
@@ -70,14 +70,13 @@ runChatCompletionGoogle settings es = do
             Right x -> pure x
 
     sendMessagesToGemini
-        :: ConversationId
-        -> ([Text] -> Text -> GeminiChatRequest -> ClientM GeminiChatResponse)
+        :: ([Text] -> Text -> GeminiChatRequest -> ClientM GeminiChatResponse)
         -> ClientEnv
         -> ResponseFormat
         -> [ToolDeclaration]
         -> [ChatMsg]
         -> Eff es ChatMsg
-    sendMessagesToGemini convId  generateContent clientEnv responseFormat tools' messages = do
+    sendMessagesToGemini generateContent clientEnv responseFormat tools' messages = do
         let hasTools = not (null tools')
         let tools =
                 if hasTools
@@ -170,7 +169,7 @@ runChatCompletionGoogle settings es = do
                     (settings ^. #apiKey . typed @Text)
                     req
 
-        liftIO $ (settings ^. #requestLogger) convId (toJSON response)
+        liftIO $ (settings ^. #requestLogger) (toJSON response)
 
         case response ^? #candidates . taking 1 folded . #content of
             Nothing -> throwError $ ChatExpectationError "No content in Gemini response"

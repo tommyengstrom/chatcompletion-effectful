@@ -142,7 +142,7 @@ handleToolLoop callback responseFormat tools convId accumulated = do
     -- Get conversation and send to LLM
     conv <- getConversation convId
 
-    response <- sendMessages convId responseFormat (toToolDeclaration <$> tools) conv
+    response <- sendMessages responseFormat (toToolDeclaration <$> tools) conv
     appendMessage convId (chatMsgToIn response)
 
     -- Stream the response message
