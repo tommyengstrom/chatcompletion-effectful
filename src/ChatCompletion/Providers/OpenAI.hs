@@ -19,106 +19,74 @@ import Data.Vector qualified as V
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effectful.Error.Static
-import OpenAI.V1
-    ( Methods (..)
-    , getClientEnv
-    , makeMethods
-    )
+import Effectful.OpenAI
 import OpenAI.V1.Chat.Completions
-    ( ChatCompletionObject (..)
-    , Content (..)
+    ( Content (..)
     , CreateChatCompletion (..)
     , Message (..)
     , _CreateChatCompletion
     )
+import OpenAI.V1.Models (Model (..))
 import OpenAI.V1.ResponseFormat qualified as RF
 import OpenAI.V1.Tool qualified as OpenAiTool
 import OpenAI.V1.ToolCall qualified as OpenAiTC
 import Relude
-import UnliftIO
-import OpenAI.V1.Models (Model(..))
 
 newtype OpenAiApiKey = OpenAiApiKey Text
     deriving stock (Show, Eq, Ord, Generic)
 
 data OpenAiSettings es = OpenAiSettings
-    { apiKey :: OpenAiApiKey
-    , baseUrl :: Text
-    , model :: Model
+    { model :: Model
     , overrides :: CreateChatCompletion -> CreateChatCompletion
     , requestLogger :: Value -> Eff es ()
     }
     deriving stock (Generic)
 
-defaultOpenAiSettings :: OpenAiApiKey -> OpenAiSettings es
-defaultOpenAiSettings apiKey =
+defaultOpenAiSettings :: OpenAiSettings es
+defaultOpenAiSettings =
     OpenAiSettings
-        { apiKey = apiKey
-        , baseUrl = "https://api.openai.com"
-        , model =  "gpt-5-nano"
+        { model = "gpt-5-nano"
         , overrides = Relude.id
         , requestLogger = \_ -> pure ()
         }
-
-mapContent :: (a -> b) -> Message a -> Message b
-mapContent f = \case
-    System{..} -> System{content = f content, ..}
-    User{..} -> User{content = f content, ..}
-    Assistant{..} -> Assistant{assistant_content = fmap f assistant_content, ..}
-    Tool{..} -> Tool{content = f content, ..}
 
 runChatCompletionOpenAi
     :: forall es a
      . ( IOE :> es
        , Error ChatCompletionError :> es
+       , Error OpenAIError :> es
+       , OpenAI :> es
        )
     => OpenAiSettings es
     -> Eff (ChatCompletion ': es) a
     -> Eff es a
-runChatCompletionOpenAi settings es = do
-    clientEnv <- liftIO . getClientEnv $ settings ^. #baseUrl
-    let Methods{createChatCompletion} =
-            makeMethods
-                clientEnv
-                (settings ^. #apiKey . typed @Text)
-                Nothing
-                Nothing
-
-    runChatCompletion createChatCompletion es
+runChatCompletionOpenAi settings = interpret \_ -> \case
+    SendMessages responseFormat tools messages ->
+        sendMessagesToOpenAI responseFormat tools messages
   where
-    runChatCompletion
-        :: (CreateChatCompletion -> IO ChatCompletionObject)
-        -> Eff (ChatCompletion ': es) a
-        -> Eff es a
-    runChatCompletion createChatCompletion = interpret \_ -> \case
-        SendMessages responseFormat tools messages ->
-            sendMessagesToOpenAI createChatCompletion responseFormat tools messages
-
-    adapt :: IO x -> Eff es x
-    adapt m = liftIO m `catchAny` \e -> throwError . ChatExpectationError  $ displayException e
-
     sendMessagesToOpenAI
-        :: (CreateChatCompletion -> IO ChatCompletionObject)
-        -> ResponseFormat
+        :: ResponseFormat
         -> [ToolDeclaration]
         -> [ChatMsg]
         -> Eff es ChatMsg
-    sendMessagesToOpenAI createChatCompletion responseFormat tools' messages = do
+    sendMessagesToOpenAI responseFormat tools' messages = do
         let tools = fmap mkToolFromDeclaration tools'
 
             req :: CreateChatCompletion
-            req = (settings ^. #overrides) _CreateChatCompletion
+            req =
+                (settings ^. #overrides) _CreateChatCompletion
                     & #messages .~ V.fromList (toOpenAIMessage <$> messages)
                     & #model .~ settings ^. #model
-                    & (case tools of
-                        [] -> Relude.id
-                        _ -> #tools ?~ V.fromList tools)
+                    & ( case tools of
+                            [] -> Relude.id
+                            _ -> #tools ?~ V.fromList tools
+                      )
                     & #response_format .~ case responseFormat of
                         Unstructured -> Nothing
                         JsonValue -> Just RF.JSON_Object
                         JsonSchema schema ->
-                            Just
-                                $ RF.JSON_Schema
+                            Just $
+                                RF.JSON_Schema
                                     RF.JSONSchema
                                         { description = Nothing
                                         , name = "response_format"
@@ -126,30 +94,27 @@ runChatCompletionOpenAi settings es = do
                                         , strict = Nothing
                                         }
         (settings ^. #requestLogger) (toJSON req)
-        response <-
-            adapt
-                . try
-                $ createChatCompletion
-                $ req
+        -- intercept the error for logging and rethrow it
+        response <- runErrorNoCallStack @OpenAIError $ chatCompletion req
         case response of
-            Left err -> do
+            Left (OpenAIError err) -> do
                 (settings ^. #requestLogger) (toJSON $ displayException err)
-                throwError $ ChatRequestError err
+                throwError (OpenAIError err)
             Right chatCompletionObject -> do
                 (settings ^. #requestLogger) (toJSON chatCompletionObject)
                 now <- liftIO getCurrentTime
                 let chatMsg :: Either String ChatMsg
                     chatMsg = do
                         openAiMsg <-
-                            maybe (Left "No message in OpenAI response") Right
-                                $ chatCompletionObject
-                                ^? #choices
-                                    . taking 1 folded
-                                    . #message
+                            maybe (Left "No message in OpenAI response") Right $
+                                chatCompletionObject
+                                    ^? #choices
+                                        . taking 1 folded
+                                        . #message
                         fromOpenAIMessage now openAiMsg
                 case chatMsg of
                     Right msg -> pure msg
-                    Left err -> throwError $ ChatExpectationError  err
+                    Left err -> throwError $ ChatExpectationError err
 
 toOpenAIMessage :: ChatMsg -> Message (Vector Content)
 toOpenAIMessage msg = case msg of
@@ -188,18 +153,18 @@ toOpenAIMessage msg = case msg of
                 OpenAiTC.Function
                     { name = tc ^. #toolName
                     , arguments =
-                        TL.toStrict
-                            $ encodeToLazyText
-                            $ Object
-                            $ KM.fromMap
-                            $ Map.mapKeys Key.fromText (tc ^. #toolArgs)
+                        TL.toStrict $
+                            encodeToLazyText $
+                                Object $
+                                    KM.fromMap $
+                                        Map.mapKeys Key.fromText (tc ^. #toolArgs)
                     }
             }
 
 mkToolFromDeclaration :: ToolDeclaration -> OpenAiTool.Tool
 mkToolFromDeclaration t =
-    OpenAiTool.Tool_Function
-        $ OpenAiTool.Function
+    OpenAiTool.Tool_Function $
+        OpenAiTool.Function
             { name = t ^. #name
             , description = t ^. #description . to Just
             , parameters = t ^. #parameterSchema
@@ -215,8 +180,8 @@ fromOpenAIMessage now = \case
             ToolCallMsg
                 { toolCalls = do
                     tc <- V.toList tcs
-                    pure
-                        $ ToolCall
+                    pure $
+                        ToolCall
                             { toolCallId = tc ^. #id . to ToolCallId
                             , toolName = tc ^. #function . #name
                             , toolArgs = case eitherDecodeStrictText (tc ^. #function . #arguments) of

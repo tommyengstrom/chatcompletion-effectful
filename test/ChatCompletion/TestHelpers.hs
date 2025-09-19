@@ -84,23 +84,20 @@ respondWithToolsJsonVerified tools convId msg = do
 -- | Common spec that tests basic ChatCompletion functionality
 -- The runner function should handle setting up the specific provider
 specWithProvider
-    :: ( forall a
+    :: forall es
+     . ( ChatCompletion :> es
+       , ChatCompletionStorage :> es
+       , Error ChatCompletionError :> es
+       , IOE :> es
+       )
+    => ( forall a
           . TVar (Map ConversationId [ChatMsg])
-         -> Eff
-                '[ ChatCompletion
-                 , ChatCompletionStorage
-                 , Error ChatStorageError
-                 , Error ChatCompletionError
-                 , IOE
-                 ]
-                a
+         -> Eff es a
          -> IO a
        )
     -> Spec
 specWithProvider runProvider = do
     tvar <- runIO $ newTVarIO (mempty :: Map ConversationId [ChatMsg])
-
-    -- Removed system-only message test as Google requires at least one user message
 
     it "Responds to initial UserMsg" $ do
         (response, conv) <- runProvider tvar $ do
@@ -272,4 +269,3 @@ showPhoneNumber =
                             }
             FullName n -> pure $ Left $ "No phone number for contact: " <> T.unpack n
         )
-

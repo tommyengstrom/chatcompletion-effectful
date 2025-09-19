@@ -44,6 +44,7 @@ library
       ChatCompletion.Storage.Postgres
       ChatCompletion.Tool
       ChatCompletion.Types
+      Effectful.OpenAI
   other-modules:
       Paths_chatcompletion_effectful
   autogen-modules:
@@ -193,6 +194,7 @@ test-suite test-dev
       ChatCompletion.Storage.Postgres
       ChatCompletion.Tool
       ChatCompletion.Types
+      Effectful.OpenAI
       ChatCompletion.PostgresLoggerSpec
       ChatCompletion.PostgresPoolSpec
       ChatCompletion.PostgresSpec

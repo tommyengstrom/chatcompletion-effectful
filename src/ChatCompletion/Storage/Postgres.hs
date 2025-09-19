@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module ChatCompletion.Storage.Postgres where
 
@@ -13,6 +14,7 @@ import Data.Pool qualified as Pool
 import Data.Time
 import Data.UUID.V4 (nextRandom)
 import Database.PostgreSQL.Simple
+import Database.PostgreSQL.Simple.SqlQQ
 import Database.PostgreSQL.Simple.FromField
 import Database.PostgreSQL.Simple.FromRow (FromRow (..))
 import Database.PostgreSQL.Simple.FromRow qualified as PG
@@ -367,6 +369,15 @@ selectMessagesQuery settings =
         <> settings
         ^. #conversationsTable
             <> " WHERE conversation_id = ? ORDER BY created_at ASC, id ASC"
+
+selectMessagesQuery' :: PostgresSettings -> Query
+selectMessagesQuery' _settings =
+    [sql| SELECT id, conversation_id, message, created_at FROM ?
+             WHERE conversation_id = ? ORDER BY created_at ASC, id ASC
+        |] -- (Only "conversations")
+        -- (toString convTable, Only conversationId)
+   -- where
+   --     convTable = settings ^. #conversationsTable
 
 checkConversationExistsQuery :: PostgresSettings -> Query
 checkConversationExistsQuery settings =
