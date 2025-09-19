@@ -31,6 +31,7 @@ flag local-dev
 library
   exposed-modules:
       ChatCompletion
+      ChatCompletion.ChatMsg
       ChatCompletion.Effect
       ChatCompletion.Error
       ChatCompletion.PostgresLogger
@@ -181,6 +182,7 @@ test-suite test-dev
   main-is: Main.hs
   other-modules:
       ChatCompletion
+      ChatCompletion.ChatMsg
       ChatCompletion.Effect
       ChatCompletion.Error
       ChatCompletion.PostgresLogger

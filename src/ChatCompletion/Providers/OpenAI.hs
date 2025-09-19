@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module ChatCompletion.Providers.OpenAI where
 
@@ -161,6 +162,7 @@ toOpenAIMessage msg = case msg of
                     }
             }
 
+
 mkToolFromDeclaration :: ToolDeclaration -> OpenAiTool.Tool
 mkToolFromDeclaration t =
     OpenAiTool.Tool_Function $
@@ -170,6 +172,35 @@ mkToolFromDeclaration t =
             , parameters = t ^. #parameterSchema
             , strict = Nothing -- True <$ t ^. #parameterSchema -- they seem to not support maybe values?
             }
+
+
+instance IsChatMsg (Message Text) (Message (Vector Content)) where
+    toChatMsgIn = \case
+        Assistant{tool_calls = Just tcs} ->
+            Right
+                ToolCallMsgIn
+                    { toolCalls = do
+                        tc <- V.toList tcs
+                        pure $
+                            ToolCall
+                                { toolCallId = tc ^. #id . to ToolCallId
+                                , toolName = tc ^. #function . #name
+                                , toolArgs = case eitherDecodeStrictText (tc ^. #function . #arguments) of
+                                    Right (Object km) -> Map.mapKeys Key.toText (KM.toMap km)
+                                    _ -> mempty
+                                }
+                    }
+        Assistant{assistant_content} ->
+            Right
+                AssistantMsgIn
+                    { content = fromMaybe "" assistant_content
+                    }
+        System{} -> Left "misuse of fromOpenAIMessage: System messages are not supported"
+        User{} -> Left "misuse of fromOpenAIMessage: User messages are not supported"
+        Tool{} -> Left "misuse of fromOpenAIMessage: Tool messages are not supported"
+
+    fromChatMsg = toOpenAIMessage
+
 
 -- | Convert the reponse from OpenAI to the internal ChatMsg format.
 -- Only assistant message are supported.
