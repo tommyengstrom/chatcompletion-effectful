@@ -19,88 +19,100 @@ import Data.OpenApi (ToSchema, toInlinedSchema)
 import Data.Text qualified as Text
 import Effectful
 import Effectful.Error.Static
+import Effectful.Time
 import Relude
-
--- | Send a user message and get response (no tool handling)
 
 -- | Send a user message and handle any tool calls automatically
 respondWithTools
-    :: ChatCompletionStorage :> es
-    => ChatCompletion :> es
-    => Error ChatCompletionError :> es
-    => (ChatMsg -> Eff es ()) -- Callback for each message as it's produced
+    :: ( HasCallStack,  ChatCompletionStorage :> es
+       , Time :> es
+       , Error LlmRequestError :> es
+       , Error ChatExpectationError :> es
+       )
+    => LlmRequestHandler es
     -> [ToolDef es] -- Tools available for this conversation
     -> ConversationId
     -> Eff es [ChatMsg] -- Returns all new messages (assistant responses and tool calls)
-respondWithTools callback tools convId =
-    respondWithTools' callback Unstructured tools convId
+respondWithTools handler tools convId =
+    fst <$> respondWithTools' handler Unstructured tools convId
 
 -- | Send a user message and handle any tool calls automatically
 respondWithToolsStructured
     :: forall a es
-     . ToSchema a
-    => FromJSON a
-    => ChatCompletionStorage :> es
-    => ChatCompletion :> es
-    => Error ChatCompletionError :> es
-    => (ChatMsg -> Eff es ()) -- Callback for each message as it's produced
+     . ( HasCallStack
+       , ToSchema a
+       , Error LlmRequestError :> es
+       , Time :> es
+       , FromJSON a
+       , ChatCompletionStorage :> es
+       , Error ChatExpectationError :> es
+       )
+    => LlmRequestHandler es
     -> [ToolDef es] -- Tools available for this conversation
     -> ConversationId
-    -> Eff es ([ChatMsg], Either String a)
-respondWithToolsStructured callback tools convId = do
-    msgs <-
+    -> Eff es ([ChatMsg], a)
+respondWithToolsStructured handler tools convId = do
+    (msgs, lastMsgContent) <-
         respondWithTools'
-            callback
+            handler
             (JsonSchema . toJSON . toInlinedSchema $ Proxy @a)
             tools
             convId
-    let assistantContents :: [Text]
-        assistantContents = [content | AssistantMsg{content} <- msgs]
-
-        parsedContents :: Either String a
-        parsedContents = case L.reverse assistantContents of
-            [] -> Left "No assistant response found"
-            (lastContent : _) -> eitherDecodeStrictText lastContent
-    pure (msgs, parsedContents)
+    a <- either (throwError . ChatExpectationError) pure $
+                    eitherDecodeStrictText lastMsgContent
+    pure (msgs, a)
 
 respondWithToolsJson
     :: forall es
-     . ChatCompletionStorage :> es
-    => ChatCompletion :> es
-    => Error ChatCompletionError :> es
-    => (ChatMsg -> Eff es ()) -- Callback for each message as it's produced
+     . ( HasCallStack
+       ,  Time :> es
+       , Error LlmRequestError :> es
+       , Error ChatExpectationError :> es
+       , ChatCompletionStorage :> es
+       )
+    => LlmRequestHandler es
     -> [ToolDef es] -- Tools available for this conversation
     -> ConversationId
-    -> Eff es ([ChatMsg], Either String Value)
-respondWithToolsJson callback tools convId = do
-    msgs <- respondWithTools' callback JsonValue tools convId
-    let assistantContents :: [Text]
-        assistantContents = [content | AssistantMsg{content} <- msgs]
-
-        parsedContents :: Either String Value
-        parsedContents = case L.reverse assistantContents of
-            [] -> Left "No assistant response found"
-            (lastContent : _) -> eitherDecodeStrictText lastContent
-    pure (msgs, parsedContents)
+    -> Eff es ([ChatMsg], Value)
+respondWithToolsJson handler tools convId = do
+    (msgs, lastMsgContent) <- respondWithTools' handler JsonValue tools convId
+    a <- either (throwError . ChatExpectationError) pure $
+                    eitherDecodeStrictText lastMsgContent
+    pure (msgs, a)
 
 -- | Send a user message and handle any tool calls automatically
 respondWithTools'
-    :: ChatCompletionStorage :> es
-    => ChatCompletion :> es
-    => Error ChatCompletionError :> es
-    => (ChatMsg -> Eff es ()) -- Callback for each message as it's produced
+    :: ( HasCallStack
+       , ChatCompletionStorage :> es
+       , Time :> es
+       , Error LlmRequestError :> es
+       , Error ChatExpectationError :> es
+       )
+    => LlmRequestHandler es
     -> ResponseFormat
-    -> [ToolDef es] -- ^ Tools available for these calls
+    -> [ToolDef es]
+    -- ^ Tools available for these calls
     -> ConversationId
-    -> Eff es [ChatMsg] -- ^ Returns all new messages (assistant responses and tool calls)
-respondWithTools' callback responseFormat tools convId = do
-    handleToolLoop callback responseFormat tools convId []
+    -> Eff es ([ChatMsg], Text)
+    -- ^ Returns all new messages (assistant responses and tool calls)
+respondWithTools' handler responseFormat tools convId = do
+    msgs <- handleToolLoop handler responseFormat tools convId []
+
+    case L.reverse msgs of
+        AssistantMsg{content} : _ -> pure (msgs, content)
+        msg : _ ->
+            throwError
+                . ChatExpectationError
+                $ "Expected the last message to be an assitant message but got: "
+                    <> show msg
+        [] -> throwError $ ChatExpectationError "Assistant returned no messages"
 
 -- | Execute tool calls and return the responses
 executeToolCalls
-    :: [ToolDef es]
+    :: Time :> es
+    => [ToolDef es]
     -> [ToolCall]
-    -> Eff es [ChatMsgIn]
+    -> Eff es [ChatMsg]
 executeToolCalls tools toolCalls = do
     forM toolCalls $ \tc -> do
         response <- case find (\t -> t ^. #name == tc ^. #toolName) tools of
@@ -121,48 +133,45 @@ executeToolCalls tools toolCalls = do
                                 { modelResponse = "Tool error: " <> Text.pack err
                                 , localResponse = []
                                 }
+        createdAt <- currentTime
         pure $
-            ToolCallResponseMsgIn
+            ToolCallResponseMsg
                 { toolCallId = tc ^. #toolCallId
                 , toolResponse = response
+                , createdAt
                 }
 
 -- | Internal helper to handle the tool execution loop
 handleToolLoop
-    :: ChatCompletionStorage :> es
-    => ChatCompletion :> es
-    => Error ChatCompletionError :> es
-    => (ChatMsg -> Eff es ()) -- Callback for each message as it's produced
+    :: ( ChatCompletionStorage :> es
+       , Time :> es
+       , Error LlmRequestError :> es
+       , Error ChatExpectationError :> es
+       )
+    => LlmRequestHandler es
     -> ResponseFormat
     -> [ToolDef es]
     -> ConversationId
     -> [ChatMsg] -- Accumulated responses
     -> Eff es [ChatMsg]
-handleToolLoop callback responseFormat tools convId accumulated = do
-    -- Get conversation and send to LLM
+handleToolLoop requestHandler responseFormat tools convId accumulated = do
     conv <- getConversation convId
 
-    response <- sendMessages responseFormat (toToolDeclaration <$> tools) conv
-    appendMessage convId (chatMsgToIn response)
-
-    -- Stream the response message
-    callback response
+    response <- requestHandler (toToolDeclaration <$> tools) responseFormat conv
+    appendMessage convId response
 
     case response of
         -- Assistant message - we're done
         AssistantMsg{} -> pure (accumulated <> [response])
         -- Tool calls - execute them and continue
         ToolCallMsg{toolCalls} -> do
-            toolResponsesIn <- executeToolCalls tools toolCalls
-            -- Convert tool responses to ChatMsg by fetching the conversation again
-            forM_ toolResponsesIn $ \msgIn -> appendMessage convId msgIn
+            traverse_ (appendMessage convId) =<< executeToolCalls tools toolCalls
             -- Get the updated conversation to get messages with timestamps
             updatedConv <- getConversation convId
             let newMessages = drop (length conv + 1) updatedConv -- +1 to skip the ToolCallMsg we already streamed
             -- Stream the tool response messages
-            forM_ newMessages callback
             handleToolLoop
-                callback
+                requestHandler
                 responseFormat
                 tools
                 convId
@@ -177,11 +186,3 @@ handleToolLoop callback responseFormat tools convId accumulated = do
             , description = tool ^. #description
             , parameterSchema = tool ^. #parameterSchema
             }
-
-chatMsgToIn :: ChatMsg -> ChatMsgIn
-chatMsgToIn = \case
-    SystemMsg{..} -> SystemMsgIn{..}
-    UserMsg{..} -> UserMsgIn{..}
-    AssistantMsg{..} -> AssistantMsgIn{..}
-    ToolCallMsg{..} -> ToolCallMsgIn{..}
-    ToolCallResponseMsg{..} -> ToolCallResponseMsgIn{..}

@@ -11,6 +11,7 @@ import OpenAI.V1
 import OpenAI.V1.Chat.Completions
 import Relude
 import Servant.Client (ClientError)
+import ChatCompletion.Error
 
 data OpenAI :: Effect where
     -- Send messages to the LLM and get a single response
@@ -35,14 +36,10 @@ defaultOpenAIConfig apiKey = OpenAIConfig
     , projectId = Nothing
     }
 
-newtype OpenAIError = OpenAIError ClientError
-    deriving stock (Show, Generic)
-    deriving newtype (Eq)
-
 runOpenAI
     :: forall es a
      . ( IOE :> es
-       , Error OpenAIError :> es
+       , Error LlmRequestError :> es
        )
     => OpenAIConfig
     -> Eff (OpenAI ': es) a
@@ -59,4 +56,6 @@ runOpenAI cfg eff = do
     interpretWith eff \_ -> \case
         ChatCompletion ccc ->
             try @ClientError (liftIO $ createChatCompletion ccc)
-                >>= either (throwError . OpenAIError) pure
+                >>= either (throwError . LlmRequestError) pure
+
+

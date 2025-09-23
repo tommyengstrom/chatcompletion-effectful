@@ -3,8 +3,8 @@ module ChatCompletion.Types
     , module ChatCompletion.ChatMsg
     ) where
 
-import Data.Aeson
 import ChatCompletion.ChatMsg
+import Data.Aeson
 import Data.OpenApi
 import Data.Text (Text)
 import Data.UUID (UUID)
@@ -32,6 +32,11 @@ newtype ConversationId = ConversationId UUID
         , FromHttpApiData
         , ToHttpApiData
         )
+type LlmRequestHandler es =
+    [ToolDeclaration]
+    -> ResponseFormat
+    -> [ChatMsg]
+    -> Eff es ChatMsg
 
 data ToolDef es = ToolDef
     { name :: ToolName

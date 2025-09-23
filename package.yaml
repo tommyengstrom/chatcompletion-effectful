@@ -82,6 +82,7 @@ library:
     - http-client-tls
     - http-types
     - lens
+    - monad-time-effectful
     - openai
     - openapi3
     - postgresql-simple
@@ -137,6 +138,7 @@ tests:
       - resource-pool
       - servant
       - servant-client
+      - monad-time-effectful
       - text
       - time
       - unliftio

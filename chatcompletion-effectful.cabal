@@ -39,7 +39,7 @@ library
       ChatCompletion.Providers.Google.API
       ChatCompletion.Providers.Google.Convert
       ChatCompletion.Providers.Google.Types
-      ChatCompletion.Providers.OpenAI
+      ChatCompletion.Providers.OpenAI.ChatCompletion
       ChatCompletion.Storage.Effect
       ChatCompletion.Storage.InMemory
       ChatCompletion.Storage.Postgres
@@ -90,6 +90,7 @@ library
     , http-client-tls
     , http-types
     , lens
+    , monad-time-effectful
     , openai
     , openapi3
     , postgresql-simple
@@ -190,7 +191,7 @@ test-suite test-dev
       ChatCompletion.Providers.Google.API
       ChatCompletion.Providers.Google.Convert
       ChatCompletion.Providers.Google.Types
-      ChatCompletion.Providers.OpenAI
+      ChatCompletion.Providers.OpenAI.ChatCompletion
       ChatCompletion.Storage.Effect
       ChatCompletion.Storage.InMemory
       ChatCompletion.Storage.Postgres
@@ -254,6 +255,7 @@ test-suite test-dev
     , http-client-tls
     , http-types
     , lens
+    , monad-time-effectful
     , mtl
     , openai
     , openapi3

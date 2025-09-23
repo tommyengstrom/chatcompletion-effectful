@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module ChatCompletion.Providers.OpenAI where
+module ChatCompletion.Providers.OpenAI.ChatCompletion where
 
 import ChatCompletion.Effect
 import ChatCompletion.Types
@@ -18,9 +18,9 @@ import Data.Time
 import Data.Vector (Vector)
 import Data.Vector qualified as V
 import Effectful
-import Effectful.Dispatch.Dynamic
 import Effectful.Error.Static
 import Effectful.OpenAI
+import Effectful.Time
 import OpenAI.V1.Chat.Completions
     ( Content (..)
     , CreateChatCompletion (..)
@@ -32,90 +32,76 @@ import OpenAI.V1.ResponseFormat qualified as RF
 import OpenAI.V1.Tool qualified as OpenAiTool
 import OpenAI.V1.ToolCall qualified as OpenAiTC
 import Relude
+import qualified Prelude
 
-newtype OpenAiApiKey = OpenAiApiKey Text
-    deriving stock (Show, Eq, Ord, Generic)
-
-data OpenAiSettings es = OpenAiSettings
+data ChatCompletionSettings es = ChatCompletionSettings
     { model :: Model
     , overrides :: CreateChatCompletion -> CreateChatCompletion
     , requestLogger :: Value -> Eff es ()
     }
     deriving stock (Generic)
 
-defaultOpenAiSettings :: OpenAiSettings es
-defaultOpenAiSettings =
-    OpenAiSettings
+defaultChatCompletionSettings :: ChatCompletionSettings es
+defaultChatCompletionSettings =
+    ChatCompletionSettings
         { model = "gpt-5-nano"
-        , overrides = Relude.id
+        , overrides = Prelude.id
         , requestLogger = \_ -> pure ()
         }
 
-runChatCompletionOpenAi
-    :: forall es a
-     . ( IOE :> es
-       , Error ChatCompletionError :> es
-       , Error OpenAIError :> es
+mkChatCompletionRequest
+    :: ( Time :> es
+       , Error ChatExpectationError :> es
+       , Error LlmRequestError :> es
        , OpenAI :> es
        )
-    => OpenAiSettings es
-    -> Eff (ChatCompletion ': es) a
-    -> Eff es a
-runChatCompletionOpenAi settings = interpret \_ -> \case
-    SendMessages responseFormat tools messages ->
-        sendMessagesToOpenAI responseFormat tools messages
-  where
-    sendMessagesToOpenAI
-        :: ResponseFormat
-        -> [ToolDeclaration]
-        -> [ChatMsg]
-        -> Eff es ChatMsg
-    sendMessagesToOpenAI responseFormat tools' messages = do
-        let tools = fmap mkToolFromDeclaration tools'
+    => ChatCompletionSettings es
+    -> LlmRequestHandler es
+mkChatCompletionRequest settings tools' responseFormat messages = do
+    let tools = fmap mkToolFromDeclaration tools'
 
-            req :: CreateChatCompletion
-            req =
-                (settings ^. #overrides) _CreateChatCompletion
-                    & #messages .~ V.fromList (toOpenAIMessage <$> messages)
-                    & #model .~ settings ^. #model
-                    & ( case tools of
-                            [] -> Relude.id
-                            _ -> #tools ?~ V.fromList tools
-                      )
-                    & #response_format .~ case responseFormat of
-                        Unstructured -> Nothing
-                        JsonValue -> Just RF.JSON_Object
-                        JsonSchema schema ->
-                            Just $
-                                RF.JSON_Schema
-                                    RF.JSONSchema
-                                        { description = Nothing
-                                        , name = "response_format"
-                                        , schema = Just schema
-                                        , strict = Nothing
-                                        }
-        (settings ^. #requestLogger) (toJSON req)
-        -- intercept the error for logging and rethrow it
-        response <- runErrorNoCallStack @OpenAIError $ chatCompletion req
-        case response of
-            Left (OpenAIError err) -> do
-                (settings ^. #requestLogger) (toJSON $ displayException err)
-                throwError (OpenAIError err)
-            Right chatCompletionObject -> do
-                (settings ^. #requestLogger) (toJSON chatCompletionObject)
-                now <- liftIO getCurrentTime
-                let chatMsg :: Either String ChatMsg
-                    chatMsg = do
-                        openAiMsg <-
-                            maybe (Left "No message in OpenAI response") Right $
-                                chatCompletionObject
-                                    ^? #choices
-                                        . taking 1 folded
-                                        . #message
-                        fromOpenAIMessage now openAiMsg
-                case chatMsg of
-                    Right msg -> pure msg
-                    Left err -> throwError $ ChatExpectationError err
+        req :: CreateChatCompletion
+        req =
+            (settings ^. #overrides) _CreateChatCompletion
+                & #messages .~ V.fromList (toOpenAIMessage <$> messages)
+                & #model .~ settings ^. #model
+                & ( case tools of
+                        [] -> Relude.id
+                        _ -> #tools ?~ V.fromList tools
+                  )
+                & #response_format .~ case responseFormat of
+                    Unstructured -> Nothing
+                    JsonValue -> Just RF.JSON_Object
+                    JsonSchema schema ->
+                        Just $
+                            RF.JSON_Schema
+                                RF.JSONSchema
+                                    { description = Nothing
+                                    , name = "response_format"
+                                    , schema = Just schema
+                                    , strict = Nothing
+                                    }
+    response <- runErrorNoCallStack @LlmRequestError $ chatCompletion req
+    case response of
+        Left (LlmRequestError err) -> do
+            (settings ^. #requestLogger) (toJSON $ displayException err)
+            throwError (LlmRequestError err)
+        Right chatCompletionObject -> do
+            (settings ^. #requestLogger) (toJSON chatCompletionObject)
+            now <- currentTime
+            let chatMsg :: Either String ChatMsg
+                chatMsg = do
+                    openAiMsg <-
+                        maybe (Left "No message in OpenAI response") Right $
+                            chatCompletionObject
+                                ^? #choices
+                                    . taking 1 folded
+                                    . #message
+                    fromOpenAIMessage now openAiMsg
+            case chatMsg of
+                Right msg -> pure msg
+                Left err -> throwError $ ChatExpectationError err
+
 
 toOpenAIMessage :: ChatMsg -> Message (Vector Content)
 toOpenAIMessage msg = case msg of
@@ -162,7 +148,6 @@ toOpenAIMessage msg = case msg of
                     }
             }
 
-
 mkToolFromDeclaration :: ToolDeclaration -> OpenAiTool.Tool
 mkToolFromDeclaration t =
     OpenAiTool.Tool_Function $
@@ -172,7 +157,6 @@ mkToolFromDeclaration t =
             , parameters = t ^. #parameterSchema
             , strict = Nothing -- True <$ t ^. #parameterSchema -- they seem to not support maybe values?
             }
-
 
 instance IsChatMsg (Message Text) (Message (Vector Content)) where
     toChatMsgIn = \case
@@ -200,7 +184,6 @@ instance IsChatMsg (Message Text) (Message (Vector Content)) where
         Tool{} -> Left "misuse of fromOpenAIMessage: Tool messages are not supported"
 
     fromChatMsg = toOpenAIMessage
-
 
 -- | Convert the reponse from OpenAI to the internal ChatMsg format.
 -- Only assistant message are supported.

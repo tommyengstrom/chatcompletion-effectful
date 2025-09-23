@@ -18,10 +18,15 @@ import Relude
 -- | Conversion between the message type used by the provider and our representation
 -- `toChatMsgIn` is subject to change if it turns out that one-to-one conversion isn't
 -- general enough.
-class IsChatMsg a b | a -> b, b -> a where
-   toChatMsgIn :: a -> Either String ChatMsgIn
+class
+    (ToJSON msgIn, ToJSON msgOut) =>
+    IsChatMsg msgIn msgOut
+        | msgIn -> msgOut
+        , msgOut -> msgIn
+    where
+    toChatMsgIn :: msgIn -> Either String ChatMsgIn
 
-   fromChatMsg :: ChatMsg -> b
+    fromChatMsg :: ChatMsg -> msgOut
 
 data ChatMsgIn
     = SystemMsgIn
