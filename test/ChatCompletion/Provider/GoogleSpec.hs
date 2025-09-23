@@ -4,7 +4,7 @@ import ChatCompletion
 import ChatCompletion.Providers.Google
 import ChatCompletion.Providers.Google.Types
 import ChatCompletion.Storage.InMemory
-import ChatCompletion.TestHelpers
+import ProviderAgnosticTests
 import Data.Text qualified as T
 import Effectful
 import Effectful.Error.Static

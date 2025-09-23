@@ -3,7 +3,7 @@ module ChatCompletion.Provider.OpenAISpec where
 import ChatCompletion
 import Effectful.OpenAI
 import ChatCompletion.Storage.InMemory
-import ChatCompletion.TestHelpers
+import ProviderAgnosticTests
 import Data.Generics.Labels ()
 import Data.Text qualified as T
 import Effectful

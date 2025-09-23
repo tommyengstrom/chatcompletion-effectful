@@ -32,12 +32,6 @@ newtype ConversationId = ConversationId UUID
         , FromHttpApiData
         , ToHttpApiData
         )
-type LlmRequestHandler es =
-    [ToolDeclaration]
-    -> ResponseFormat
-    -> [ChatMsg]
-    -> Eff es ChatMsg
-
 data ToolDef es = ToolDef
     { name :: ToolName
     , description :: ToolDescription

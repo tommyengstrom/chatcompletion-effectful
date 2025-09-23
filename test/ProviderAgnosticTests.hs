@@ -1,4 +1,4 @@
-module ChatCompletion.TestHelpers where
+module ProviderAgnosticTests where
 
 import ChatCompletion
 import Control.Lens (folded, (^..))

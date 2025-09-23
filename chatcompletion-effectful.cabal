@@ -115,7 +115,7 @@ test-suite chatcompletion-effectful-test
       ChatCompletion.Provider.GoogleSpec
       ChatCompletion.Provider.OpenAISpec
       ChatCompletion.Storage.InMemorySpec
-      ChatCompletion.TestHelpers
+      ProviderAgnosticTests
       Paths_chatcompletion_effectful
   autogen-modules:
       Paths_chatcompletion_effectful
@@ -163,6 +163,7 @@ test-suite chatcompletion-effectful-test
     , hspec
     , http-types
     , lens
+    , monad-time-effectful
     , mtl
     , openai
     , openapi3
@@ -204,7 +205,7 @@ test-suite test-dev
       ChatCompletion.Provider.GoogleSpec
       ChatCompletion.Provider.OpenAISpec
       ChatCompletion.Storage.InMemorySpec
-      ChatCompletion.TestHelpers
+      ProviderAgnosticTests
       Paths_chatcompletion_effectful
   autogen-modules:
       Paths_chatcompletion_effectful
