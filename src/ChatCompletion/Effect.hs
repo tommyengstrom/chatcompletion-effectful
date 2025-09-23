@@ -9,6 +9,7 @@ import Effectful
 import Effectful.TH
 import Data.Aeson (Value)
 import GHC.Generics (Generic)
+import Prelude (String)
 
 data LlmChat :: Effect where
     -- Send messages to the LLM and get a single response
@@ -26,4 +27,5 @@ makeEffect ''LlmChat
 data NativeMsgFormat
     = NativeMsgOut Value
     | NativeMsgIn Value
+    | NativeRequestFailure String
     deriving stock (Generic)

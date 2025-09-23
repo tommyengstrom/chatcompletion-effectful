@@ -52,6 +52,7 @@ defaultChatCompletionSettings =
 runLlmChat
     :: ( Time :> es
        , Error ChatExpectationError :> es
+       , Error LlmRequestError :> es
        , ChatCompletionStorage :> es
        , OpenAI :> es
        )
@@ -85,7 +86,12 @@ runLlmChat ChatCompletionSettings {..} = interpret \_ -> \case
                                         , strict = Nothing
                                         }
         requestLogger convId . NativeMsgOut $ toJSON req
-        chatCompletionObject <- chatCompletion req
+        chatCompletionObject <- runErrorNoCallStackWith @LlmRequestError
+            (\(LlmRequestError e) ->do
+                requestLogger convId . NativeRequestFailure $ displayException e
+                throwError $ LlmRequestError e
+            ) $
+            chatCompletion req
         requestLogger convId . NativeMsgIn $ toJSON chatCompletionObject
         now <- currentTime
         openAiMsg <-
@@ -94,47 +100,6 @@ runLlmChat ChatCompletionSettings {..} = interpret \_ -> \case
                 ^? #choices . taking 1 folded . #message
         either throwError pure $ toChatMsgIn now openAiMsg
 
--- mkChatCompletionRequest
---     :: ( Time :> es
---        , Error ChatExpectationError :> es
---        , OpenAI :> es
---        )
---     => ChatCompletionSettings es
---     -> [ToolDeclaration]
---     -> ResponseFormat
---     -> [ChatMsg]
---     -> Eff es ChatMsg
--- mkChatCompletionRequest ChatCompletionSettings {..} tools' responseFormat messages = do
---     let tools = fmap mkToolFromDeclaration tools'
---
---         req :: CreateChatCompletion
---         req =
---             overrides _CreateChatCompletion
---                 & #messages .~ V.fromList (toOpenAIMessage <$> messages)
---                 & #model .~ model
---                 & ( case tools of
---                         [] -> Relude.id
---                         _ -> #tools ?~ V.fromList tools
---                   )
---                 & #response_format .~ case responseFormat of
---                     Unstructured -> Nothing
---                     JsonValue -> Just RF.JSON_Object
---                     JsonSchema schema ->
---                         Just
---                             $ RF.JSON_Schema
---                                 RF.JSONSchema
---                                     { description = Nothing
---                                     , name = "response_format"
---                                     , schema = Just schema
---                                     , strict = Nothing
---                                     }
---     chatCompletionObject <- chatCompletion req
---     now <- currentTime
---     openAiMsg <-
---         maybe (throwError $ ChatExpectationError "No message in OpenAI response") pure
---             $ chatCompletionObject
---             ^? #choices . taking 1 folded . #message
---     either throwError pure $ toChatMsgIn now openAiMsg
 
 toOpenAIMessage :: ChatMsg -> Message (Vector Content)
 toOpenAIMessage msg = case msg of
