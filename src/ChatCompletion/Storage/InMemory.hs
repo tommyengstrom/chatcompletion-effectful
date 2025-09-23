@@ -39,20 +39,9 @@ runChatCompletionStorageInMemory tvar = interpret \_ -> \case
         case conv of
             Nothing -> throwError $  NoSuchConversation conversationId
             Just c -> pure c
-    AppendMessage conversationId msgIn -> do
-        msg <- toChatMsg msgIn
-        atomically $ do
-            modifyTVar' tvar $ Map.adjust (<> [msg]) conversationId
+    AppendMessage conversationId msg -> do
+        atomically $ modifyTVar' tvar $ Map.adjust (<> [msg]) conversationId
     ListConversations -> do
         conversations <- readTVarIO tvar
         pure $ Map.keys conversations
 
-toChatMsg :: IOE :> es => ChatMsgIn -> Eff es ChatMsg
-toChatMsg msgIn = do
-    createdAt <- liftIO getCurrentTime
-    pure case msgIn of
-        SystemMsgIn {..} -> SystemMsg {..}
-        UserMsgIn{..} -> UserMsg{..}
-        AssistantMsgIn{..} -> AssistantMsg{..}
-        ToolCallMsgIn{..} -> ToolCallMsg{..}
-        ToolCallResponseMsgIn{..} -> ToolCallResponseMsg{..}

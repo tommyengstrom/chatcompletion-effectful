@@ -82,6 +82,7 @@ library:
     - http-client-tls
     - http-types
     - lens
+    - monad-time-effectful
     - openai
     - openapi3
     - postgresql-simple
@@ -127,6 +128,7 @@ tests:
       - http-client-tls
       - http-types
       - lens
+      - monad-time-effectful
       - mtl
       - openai
       - openapi3
@@ -156,33 +158,34 @@ tests:
     - base 
     - base64-bytestring
     - bytestring
+    - chatcompletion-effectful
     - containers
     - deepseq
     - effectful
     - effectful-th
     - generic-lens
     - hashable
+    - hspec
     - http-types
     - lens
+    - monad-time-effectful
     - mtl
+    - openai
     - openai
     - openapi3
     - postgresql-simple
+    - postgresql-simple
     - pretty-simple
     - QuickCheck
+    - QuickCheck
+    - relude
     - text
     - time
-    - relude
     - unliftio
     - unordered-containers
     - uuid
     - vector
     - yaml
-    - openai
-    - postgresql-simple
-    - chatcompletion-effectful
-    - QuickCheck
-    - hspec
 
 
 # executables:

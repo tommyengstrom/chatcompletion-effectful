@@ -1,47 +1,52 @@
 module ChatCompletion.Provider.OpenAISpec where
 
 import ChatCompletion
-import ChatCompletion.TestHelpers
-import ChatCompletion.Providers.OpenAI
+import Effectful.OpenAI
 import ChatCompletion.Storage.InMemory
+import ProviderAgnosticTests
+import Data.Generics.Labels ()
 import Data.Text qualified as T
 import Effectful
 import Effectful.Error.Static
 import Relude
 import Test.Hspec
-import Control.Lens
-import OpenAI.V1.Chat.Completions (ReasoningEffort(..))
+import ChatCompletion.Providers.OpenAI.ChatCompletion
+import System.Environment (getEnv)
+import Effectful.Time
 
-runOpenAI
+runEffectStack
     :: TVar (Map ConversationId [ChatMsg])
     -> Eff
-        '[ ChatCompletion
+        '[ LlmChat
          , ChatCompletionStorage
+         , OpenAI
          , Error ChatStorageError
-         , Error ChatCompletionError
+         , Error ChatExpectationError
+         , Error LlmRequestError
+         , Time
          , IOE
          ]
         a
     -> IO a
-runOpenAI tvar action = do
-    apiKey <-
-        maybe
-            (error "OPENAI_API_KEY not set in environment")
-            (pure . OpenAiApiKey . T.pack)
-            =<< lookupEnv "OPENAI_API_KEY"
-    let settings = defaultOpenAiSettings apiKey
-                & #overrides .~ (#reasoning_effort ?~  ReasoningEffort_Minimal)
+runEffectStack tvar action = do
+    cfg <- defaultOpenAIConfig . T.pack <$> getEnv "OPENAI_API_KEY"
+
     -- The handlers expect this effect order
     runEff
+        . runTime
         . runErrorNoCallStackWith (error . show)
         . runErrorNoCallStackWith (error . show)
+        . runErrorNoCallStackWith (error . show)
+        . runOpenAI cfg
         . runChatCompletionStorageInMemory tvar
-        $ runChatCompletionOpenAi settings action
+        $ runLlmChat defaultChatCompletionSettings action
+        -- - $ runChatCompletionOpenAi settings action
 
 spec :: Spec
 spec = describe "ChatCompletion Provider - OpenAI" $ do
     -- Run common tests
-    specWithProvider runOpenAI
+    tvar <- runIO $ newTVarIO mempty
+    specWithProvider (runEffectStack tvar)
 
     -- OpenAI-specific tests can be added here
     describe "OpenAI-specific features" $ do

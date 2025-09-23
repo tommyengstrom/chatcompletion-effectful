@@ -116,7 +116,7 @@ extractSystemMessage msgs = case msgs of
 
 -- | Convert GeminiContent to ChatMsg
 fromGeminiContent
-    :: Error ChatCompletionError :> es => UTCTime -> GeminiContent -> Eff es ChatMsg
+    :: Error ChatExpectationError :> es => UTCTime -> GeminiContent -> Eff es ChatMsg
 fromGeminiContent now content = case content ^. #role of
     "model" -> case V.toList (content ^. #parts) of
         [GeminiTextPart text] ->

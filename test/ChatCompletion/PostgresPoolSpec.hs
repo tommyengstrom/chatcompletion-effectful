@@ -1,6 +1,6 @@
 module ChatCompletion.PostgresPoolSpec where
 
-import ChatCompletion.Error (ChatCompletionError)
+import ChatCompletion.Error (LlmRequestError)
 import ChatCompletion.Storage.Effect
 import ChatCompletion.Storage.InMemorySpec (specGeneralized)
 import ChatCompletion.Storage.Postgres
@@ -14,6 +14,7 @@ import Effectful.Error.Static
 import Relude
 import Test.Hspec
 import UnliftIO (forConcurrently)
+import Effectful.Time
 
 spec :: Spec
 spec = describe "PostgreSQL Connection Pooling" $ do
@@ -53,14 +54,19 @@ spec = describe "PostgreSQL Connection Pooling" $ do
             -- Run multiple concurrent operations
             results <- forConcurrently ([1 .. 20] :: [Int]) $ \i -> do
                 runEff
-                    . runError @ChatCompletionError
+                    . runTime
+                    . runError @LlmRequestError
                     . runErrorNoCallStackWith @ChatStorageError (error . show)
                     $ runChatCompletionStoragePostgresWithPool config
                     $ do
                         -- Each concurrent operation creates and uses a conversation
                         convId <- createConversation $ "Test system prompt " <> show i
                         appendUserMessage convId  $ "User message " <> show i
-                        appendMessage convId $ AssistantMsgIn $ "Assistant response " <> show i
+                        createdAt <- currentTime
+                        appendMessage convId $ AssistantMsg
+                            {content = "Assistant response " <> show i
+                            , createdAt
+                            }
                         msgs <- getConversation convId
                         pure (length msgs)
 
@@ -103,7 +109,8 @@ spec = describe "PostgreSQL Connection Pooling" $ do
 
             -- Test using the backward compatible function with our test table
             result <- runEff
-                . runError @ChatCompletionError
+                    . runTime
+                . runError @LlmRequestError
                 . runErrorNoCallStackWith @ChatStorageError (error . show)
                 $ runChatCompletionStoragePostgresWithPool testConfig do
                     convId <- createConversation "Backward compatible test"

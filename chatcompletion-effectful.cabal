@@ -31,6 +31,7 @@ flag local-dev
 library
   exposed-modules:
       ChatCompletion
+      ChatCompletion.ChatMsg
       ChatCompletion.Effect
       ChatCompletion.Error
       ChatCompletion.PostgresLogger
@@ -38,12 +39,13 @@ library
       ChatCompletion.Providers.Google.API
       ChatCompletion.Providers.Google.Convert
       ChatCompletion.Providers.Google.Types
-      ChatCompletion.Providers.OpenAI
+      ChatCompletion.Providers.OpenAI.ChatCompletion
       ChatCompletion.Storage.Effect
       ChatCompletion.Storage.InMemory
       ChatCompletion.Storage.Postgres
       ChatCompletion.Tool
       ChatCompletion.Types
+      Effectful.OpenAI
   other-modules:
       Paths_chatcompletion_effectful
   autogen-modules:
@@ -88,6 +90,7 @@ library
     , http-client-tls
     , http-types
     , lens
+    , monad-time-effectful
     , openai
     , openapi3
     , postgresql-simple
@@ -112,7 +115,7 @@ test-suite chatcompletion-effectful-test
       ChatCompletion.Provider.GoogleSpec
       ChatCompletion.Provider.OpenAISpec
       ChatCompletion.Storage.InMemorySpec
-      ChatCompletion.TestHelpers
+      ProviderAgnosticTests
       Paths_chatcompletion_effectful
   autogen-modules:
       Paths_chatcompletion_effectful
@@ -160,6 +163,7 @@ test-suite chatcompletion-effectful-test
     , hspec
     , http-types
     , lens
+    , monad-time-effectful
     , mtl
     , openai
     , openapi3
@@ -180,6 +184,7 @@ test-suite test-dev
   main-is: Main.hs
   other-modules:
       ChatCompletion
+      ChatCompletion.ChatMsg
       ChatCompletion.Effect
       ChatCompletion.Error
       ChatCompletion.PostgresLogger
@@ -187,19 +192,20 @@ test-suite test-dev
       ChatCompletion.Providers.Google.API
       ChatCompletion.Providers.Google.Convert
       ChatCompletion.Providers.Google.Types
-      ChatCompletion.Providers.OpenAI
+      ChatCompletion.Providers.OpenAI.ChatCompletion
       ChatCompletion.Storage.Effect
       ChatCompletion.Storage.InMemory
       ChatCompletion.Storage.Postgres
       ChatCompletion.Tool
       ChatCompletion.Types
+      Effectful.OpenAI
       ChatCompletion.PostgresLoggerSpec
       ChatCompletion.PostgresPoolSpec
       ChatCompletion.PostgresSpec
       ChatCompletion.Provider.GoogleSpec
       ChatCompletion.Provider.OpenAISpec
       ChatCompletion.Storage.InMemorySpec
-      ChatCompletion.TestHelpers
+      ProviderAgnosticTests
       Paths_chatcompletion_effectful
   autogen-modules:
       Paths_chatcompletion_effectful
@@ -250,6 +256,7 @@ test-suite test-dev
     , http-client-tls
     , http-types
     , lens
+    , monad-time-effectful
     , mtl
     , openai
     , openapi3

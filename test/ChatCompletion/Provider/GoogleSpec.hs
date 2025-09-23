@@ -1,23 +1,26 @@
 module ChatCompletion.Provider.GoogleSpec where
 
 import ChatCompletion
-import ChatCompletion.TestHelpers
 import ChatCompletion.Providers.Google
 import ChatCompletion.Providers.Google.Types
 import ChatCompletion.Storage.InMemory
+import ProviderAgnosticTests
 import Data.Text qualified as T
 import Effectful
 import Effectful.Error.Static
 import Relude
 import Test.Hspec
+import Effectful.Time
 
 runGoogle
     :: TVar (Map ConversationId [ChatMsg])
     -> Eff
-        '[ ChatCompletion
+        '[ LlmChat
          , ChatCompletionStorage
+         , Error ChatExpectationError
          , Error ChatStorageError
-         , Error ChatCompletionError
+         , Error LlmRequestError
+         , Time
          , IOE
          ]
         a
@@ -29,17 +32,20 @@ runGoogle tvar action = do
             (pure . GoogleApiKey . T.pack)
             =<< lookupEnv "GEMINI_API_KEY"
     let settings = defaultGoogleSettings apiKey
-    runEff $
-        runErrorNoCallStackWith (error . show) $
-            runErrorNoCallStackWith @ChatStorageError (error . show) $
-                runChatCompletionStorageInMemory tvar $
-                    runChatCompletionGoogle settings $
-                        action
+    runEff
+        . runTime
+        . runErrorNoCallStackWith (error . show)
+        . runErrorNoCallStackWith (error . show)
+        . runErrorNoCallStackWith (error . show)
+        . runChatCompletionStorageInMemory tvar
+        . runChatCompletionGoogle settings
+        $ action
 
 spec :: Spec
 spec = describe "ChatCompletion Provider - Google" $ do
     -- Run common tests
-    specWithProvider runGoogle
+    tvar <- runIO $ newTVarIO mempty
+    specWithProvider (runGoogle tvar)
 
     -- Google-specific tests
     describe "Google-specific features" $ do

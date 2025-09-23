@@ -13,6 +13,7 @@ import Data.Text qualified as T
 import Data.UUID
 import Effectful
 import Effectful.Error.Static
+import Effectful.Time
 import Relude
 import Test.Hspec
 import Test.QuickCheck
@@ -30,11 +31,15 @@ instance Arbitrary ConversationId where
 runEffStack
     :: Eff
         '[ Error ChatStorageError
+         , Time
          , IOE
          ]
         a
     -> IO (Either ChatStorageError a)
-runEffStack = runEff . runErrorNoCallStack
+runEffStack =
+    runEff
+        . runTime
+        . runErrorNoCallStack
 
 data SomeText = SomeText Text
     deriving stock (Show, Generic)
@@ -47,9 +52,13 @@ spec =
         specGeneralized (runChatCompletionStorageInMemory tvar)
 
 specGeneralized
-    :: ( forall a
-          . Eff (ChatCompletionStorage ': '[Error ChatStorageError, IOE]) a
-         -> Eff '[Error ChatStorageError, IOE] a
+    :: ( forall a es
+          . ( Error ChatStorageError :> es
+            , Time :> es
+            , IOE :> es
+            )
+         => Eff (ChatCompletionStorage ': es) a
+         -> Eff es a
        )
     -> Spec
 specGeneralized runStorage = do
@@ -88,8 +97,8 @@ specGeneralized runStorage = do
                     convIds <- listConversations
                     convId <- liftIO . generate $ elements convIds
                     conv <- getConversation convId
-                    appendUserMessage convId  userPrompt1
-                    appendUserMessage convId  userPrompt2
+                    appendUserMessage convId userPrompt1
+                    appendUserMessage convId userPrompt2
                     (conv,) <$> getConversation convId
                 liftIO $ length beforeAppend + 2 `shouldBe` length afterAppend
                 liftIO $

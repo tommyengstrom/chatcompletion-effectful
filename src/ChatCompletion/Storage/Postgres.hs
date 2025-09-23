@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module ChatCompletion.Storage.Postgres where
 
@@ -13,11 +14,13 @@ import Data.Pool qualified as Pool
 import Data.Time
 import Data.UUID.V4 (nextRandom)
 import Database.PostgreSQL.Simple
+import Database.PostgreSQL.Simple.SqlQQ
 import Database.PostgreSQL.Simple.FromField
 import Database.PostgreSQL.Simple.FromRow (FromRow (..))
 import Database.PostgreSQL.Simple.FromRow qualified as PG
 import Database.PostgreSQL.Simple.ToField
 import Effectful
+import Effectful.Time
 import Effectful.Dispatch.Dynamic
 import Effectful.Error.Static
 import Relude
@@ -72,20 +75,20 @@ instance ToField ConversationId where
 instance FromField ConversationId where
     fromField f mdata = ConversationId <$> fromField f mdata
 
-instance ToField ChatMsgIn where
+instance ToField ChatMsg where
     toField msg = toField (toJSON msg)
 
-instance FromField ChatMsgIn where
+instance FromField ChatMsg where
     fromField f mdata = do
         (value :: Value) <- fromField f mdata
         case decode (encode value) of
             Just msg -> pure msg
-            Nothing -> returnError ConversionFailed f "Could not decode ChatMsgIn from JSON"
+            Nothing -> returnError ConversionFailed f "Could not decode ChatMsg from JSON"
 
 data MessageRow = MessageRow
     { messageId :: Int
     , conversationId :: ConversationId
-    , message :: ChatMsgIn
+    , message :: ChatMsg
     , createdAt :: UTCTime
     }
     deriving stock (Show, Eq, Generic)
@@ -95,13 +98,13 @@ instance FromRow MessageRow where
 
 
 -- Helper function to convert ChatMsgIn to ChatMsg with timestamp
-chatMsgFromIn :: ChatMsgIn -> UTCTime -> ChatMsg
-chatMsgFromIn msgIn createdAt = case msgIn of
-    SystemMsgIn {..} -> SystemMsg {..}
-    UserMsgIn {..} -> UserMsg {..}
-    AssistantMsgIn {..} -> AssistantMsg {..}
-    ToolCallMsgIn {..} -> ToolCallMsg {..}
-    ToolCallResponseMsgIn {..}  -> ToolCallResponseMsg {..}
+--chatMsgFromIn :: ChatMsgIn -> UTCTime -> ChatMsg
+--chatMsgFromIn msgIn createdAt = case msgIn of
+--    SystemMsgIn {..} -> SystemMsg {..}
+--    UserMsgIn {..} -> UserMsg {..}
+--    AssistantMsgIn {..} -> AssistantMsg {..}
+--    ToolCallMsgIn {..} -> ToolCallMsg {..}
+--    ToolCallResponseMsgIn {..}  -> ToolCallResponseMsg {..}
 
 -- | Check if a connection is healthy
 isHealthyConnection :: Connection -> IO Bool
@@ -171,6 +174,7 @@ runChatCompletionStoragePostgres
     :: forall es a
      . ( IOE :> es
        , Error ChatStorageError :> es
+       , Time :> es
        )
     => PostgresSettings
     -> Eff (ChatCompletionStorage ': es) a
@@ -182,7 +186,8 @@ runChatCompletionStoragePostgres settings eff = do
     handleStorage _ = \case
         CreateConversation systemPrompt -> do
             conversationId <- ConversationId <$> liftIO nextRandom
-            let initialMsg = SystemMsgIn systemPrompt
+            timestamp <- currentTime
+            let initialMsg = SystemMsg systemPrompt timestamp
             conn <- liftIO $ settings ^. #getConnection
             liftIO $ withTransaction conn $ do
                 void $ execute conn (insertMessageQuery settings) (conversationId, initialMsg)
@@ -199,9 +204,9 @@ runChatCompletionStoragePostgres settings eff = do
             result <- liftIO $ withTransaction conn $ do
                 query conn (selectMessagesQuery settings) (Only conversationId)
             liftIO $ close conn
-            case result of
+            case result :: [MessageRow] of
                 [] -> throwError $ NoSuchConversation conversationId
-                rows -> pure $ map (\(MessageRow _ _ msgIn createdAt) -> chatMsgFromIn msgIn createdAt) rows
+                rows -> pure $ map (^. #message) rows
         AppendMessage conversationId msgIn -> liftIO do
             conn <- settings ^. #getConnection
             withTransaction conn $ do
@@ -226,6 +231,7 @@ runChatCompletionStoragePostgres settings eff = do
 runChatCompletionStoragePostgresWithPool
     :: forall es a
      . ( IOE :> es
+       , Time :> es
        , Error ChatStorageError :> es
        )
     => PostgresConfig
@@ -241,7 +247,8 @@ runChatCompletionStoragePostgresWithPool config eff = do
     handleStoragePooled pool' _ = \case
         CreateConversation systemPrompt -> do
             conversationId <- ConversationId <$> liftIO nextRandom
-            let initialMsg = SystemMsgIn systemPrompt
+            timestamp <- currentTime
+            let initialMsg = SystemMsg systemPrompt timestamp
             liftIO $ withPooledConnection pool' $ \conn -> do
                 withTransaction conn $ do
                     void
@@ -266,9 +273,9 @@ runChatCompletionStoragePostgresWithPool config eff = do
                         conn
                         (selectMessagesQuery (PostgresSettings (pure conn) (config ^. #conversationsTable)))
                         (Only conversationId)
-            case result of
+            case result :: [MessageRow] of
                 [] -> throwError $ NoSuchConversation conversationId
-                rows -> pure $ map (\(MessageRow _ _ msgIn createdAt) -> chatMsgFromIn msgIn createdAt) rows
+                rows -> pure $ rows ^.. folded . #message
         AppendMessage conversationId msgIn -> liftIO $ withPooledConnection pool' $ \conn -> do
             withTransaction conn $ do
                 -- Check if conversation exists
@@ -302,6 +309,7 @@ runChatCompletionStoragePostgres'
     :: forall es a
      . ( IOE :> es
        , Error ChatStorageError :> es
+       , Time :> es
        )
     => ByteString
     -> Eff (ChatCompletionStorage ': es) a
@@ -367,6 +375,15 @@ selectMessagesQuery settings =
         <> settings
         ^. #conversationsTable
             <> " WHERE conversation_id = ? ORDER BY created_at ASC, id ASC"
+
+selectMessagesQuery' :: PostgresSettings -> Query
+selectMessagesQuery' _settings =
+    [sql| SELECT id, conversation_id, message, created_at FROM ?
+             WHERE conversation_id = ? ORDER BY created_at ASC, id ASC
+        |] -- (Only "conversations")
+        -- (toString convTable, Only conversationId)
+   -- where
+   --     convTable = settings ^. #conversationsTable
 
 checkConversationExistsQuery :: PostgresSettings -> Query
 checkConversationExistsQuery settings =
