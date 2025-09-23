@@ -38,7 +38,7 @@ defaultGoogleSettings apiKey =
 runChatCompletionGoogle
     :: forall es a
      . ( IOE :> es
-       , Error ChatCompletionError :> es
+       , Error ChatExpectationError :> es
        )
     => GoogleSettings
     -> Eff (ChatCompletion ': es) a

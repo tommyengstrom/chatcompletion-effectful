@@ -8,14 +8,16 @@ import ChatCompletion.Types
 import Effectful
 import Effectful.TH
 
-data ChatCompletion :: Effect where
+data LlmChat :: Effect where
     -- Send messages to the LLM and get a single response
     -- The response could be an assistant message or tool calls
-    SendMessages
-        :: ResponseFormat
-        -> [ToolDeclaration] -- Available tools
-        -> [ChatMsg] -- Messages to send
-        -> ChatCompletion m ChatMsg -- Single response message
+    GetLlmResponse
+        :: [ToolDeclaration] -- ^ Available tools for this request
+        -> ResponseFormat
+        -> [ChatMsg] -- ^ Messages to send
+        -> LlmChat m ChatMsg -- ^ Single response message, can be tool call that requires resolving.
 
-type instance DispatchOf ChatCompletion = 'Dynamic
-makeEffect ''ChatCompletion
+makeEffect ''LlmChat
+
+
+

@@ -18,6 +18,7 @@ import Data.Time
 import Data.Vector (Vector)
 import Data.Vector qualified as V
 import Effectful
+import Effectful.Dispatch.Dynamic
 import Effectful.Error.Static
 import Effectful.OpenAI
 import Effectful.Time
@@ -32,7 +33,7 @@ import OpenAI.V1.ResponseFormat qualified as RF
 import OpenAI.V1.Tool qualified as OpenAiTool
 import OpenAI.V1.ToolCall qualified as OpenAiTC
 import Relude
-import qualified Prelude
+import Prelude qualified
 
 data ChatCompletionSettings es = ChatCompletionSettings
     { model :: Model
@@ -48,6 +49,19 @@ defaultChatCompletionSettings =
         , overrides = Prelude.id
         , requestLogger = \_ -> pure ()
         }
+
+runChatCompletion
+    :: ( Time :> es
+       , Error ChatExpectationError :> es
+       , Error LlmRequestError :> es
+       , OpenAI :> es
+       )
+    => ChatCompletionSettings es
+    -> Eff (LlmChat ': es) a
+    -> Eff es a
+runChatCompletion settings = interpret \_ -> \case
+    GetLlmResponse tools responseFormat messages ->
+        mkChatCompletionRequest settings tools responseFormat messages
 
 mkChatCompletionRequest
     :: ( Time :> es
@@ -73,14 +87,15 @@ mkChatCompletionRequest settings tools' responseFormat messages = do
                     Unstructured -> Nothing
                     JsonValue -> Just RF.JSON_Object
                     JsonSchema schema ->
-                        Just $
-                            RF.JSON_Schema
+                        Just
+                            $ RF.JSON_Schema
                                 RF.JSONSchema
                                     { description = Nothing
                                     , name = "response_format"
                                     , schema = Just schema
                                     , strict = Nothing
                                     }
+    (settings ^. #requestLogger) (toJSON $ toJSON req)
     response <- runErrorNoCallStack @LlmRequestError $ chatCompletion req
     case response of
         Left (LlmRequestError err) -> do
@@ -92,16 +107,15 @@ mkChatCompletionRequest settings tools' responseFormat messages = do
             let chatMsg :: Either String ChatMsg
                 chatMsg = do
                     openAiMsg <-
-                        maybe (Left "No message in OpenAI response") Right $
-                            chatCompletionObject
-                                ^? #choices
-                                    . taking 1 folded
-                                    . #message
+                        maybe (Left "No message in OpenAI response") Right
+                            $ chatCompletionObject
+                            ^? #choices
+                                . taking 1 folded
+                                . #message
                     fromOpenAIMessage now openAiMsg
             case chatMsg of
                 Right msg -> pure msg
                 Left err -> throwError $ ChatExpectationError err
-
 
 toOpenAIMessage :: ChatMsg -> Message (Vector Content)
 toOpenAIMessage msg = case msg of
@@ -140,18 +154,18 @@ toOpenAIMessage msg = case msg of
                 OpenAiTC.Function
                     { name = tc ^. #toolName
                     , arguments =
-                        TL.toStrict $
-                            encodeToLazyText $
-                                Object $
-                                    KM.fromMap $
-                                        Map.mapKeys Key.fromText (tc ^. #toolArgs)
+                        TL.toStrict
+                            $ encodeToLazyText
+                            $ Object
+                            $ KM.fromMap
+                            $ Map.mapKeys Key.fromText (tc ^. #toolArgs)
                     }
             }
 
 mkToolFromDeclaration :: ToolDeclaration -> OpenAiTool.Tool
 mkToolFromDeclaration t =
-    OpenAiTool.Tool_Function $
-        OpenAiTool.Function
+    OpenAiTool.Tool_Function
+        $ OpenAiTool.Function
             { name = t ^. #name
             , description = t ^. #description . to Just
             , parameters = t ^. #parameterSchema
@@ -165,8 +179,8 @@ instance IsChatMsg (Message Text) (Message (Vector Content)) where
                 ToolCallMsgIn
                     { toolCalls = do
                         tc <- V.toList tcs
-                        pure $
-                            ToolCall
+                        pure
+                            $ ToolCall
                                 { toolCallId = tc ^. #id . to ToolCallId
                                 , toolName = tc ^. #function . #name
                                 , toolArgs = case eitherDecodeStrictText (tc ^. #function . #arguments) of
@@ -194,8 +208,8 @@ fromOpenAIMessage now = \case
             ToolCallMsg
                 { toolCalls = do
                     tc <- V.toList tcs
-                    pure $
-                        ToolCall
+                    pure
+                        $ ToolCall
                             { toolCallId = tc ^. #id . to ToolCallId
                             , toolName = tc ^. #function . #name
                             , toolArgs = case eitherDecodeStrictText (tc ^. #function . #arguments) of
