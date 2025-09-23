@@ -14,19 +14,15 @@ import Data.OpenApi.Lens
 import Data.OpenApi.Schema (ToSchema (..))
 import Data.Time
 import Relude
+import ChatCompletion.Error
 
 -- | Conversion between the message type used by the provider and our representation
 -- `toChatMsgIn` is subject to change if it turns out that one-to-one conversion isn't
 -- general enough.
-class
-    (ToJSON msgIn, ToJSON msgOut) =>
-    IsChatMsg msgIn msgOut
-        | msgIn -> msgOut
-        , msgOut -> msgIn
-    where
-    toChatMsgIn :: msgIn -> Either String ChatMsgIn
+class (ToJSON in_, ToJSON out) => IsChatMsg in_ out | in_ -> out , out -> in_ where
+    toChatMsgIn :: UTCTime -> in_ -> Either ChatExpectationError ChatMsg
 
-    fromChatMsg :: ChatMsg -> msgOut
+    fromChatMsg :: ChatMsg -> out
 
 data ChatMsgIn
     = SystemMsgIn

@@ -1,7 +1,6 @@
 module ChatCompletion.TestHelpers where
 
 import ChatCompletion
-import ChatCompletion.Storage.InMemory
 import Control.Lens (folded, (^..))
 import Data.Aeson
 import Data.Aeson.KeyMap (keys)
@@ -14,23 +13,6 @@ import Effectful.Time
 import Relude
 import Test.Hspec
 
-runShit
-    :: TVar (Map ConversationId [ChatMsg])
-    -> Eff
-        '[ Time
-         , ChatCompletionStorage
-         , Error ChatStorageError
-         , Error LlmRequestError
-         , IOE
-         ]
-        a
-    -> IO a
-runShit tvar =
-    runEff
-        . runErrorNoCallStackWith @LlmRequestError (error . show)
-        . runErrorNoCallStackWith @ChatStorageError (error . show)
-        . runChatCompletionStorageInMemory tvar
-        . runTime
 
 -- | Common spec that tests basic ChatCompletion functionality
 -- The runner function should handle setting up the specific provider
@@ -38,13 +20,12 @@ specWithProvider
     :: forall es
      . (Time :> es
         , ChatCompletionStorage :> es
-        , Error LlmRequestError :> es
         , Error ChatExpectationError :> es
+        , LlmChat :> es
         )
      => (forall a. Eff es a -> IO a)
-    -> LlmRequestHandler es
     -> Spec
-specWithProvider runEffectStack mkRequest = do
+specWithProvider runEffectStack  = do
     --tvar <- runIO $ newTVarIO (mempty :: Map ConversationId [ChatMsg])
 
     it "Responds to initial UserMsg" $ do
@@ -53,8 +34,7 @@ specWithProvider runEffectStack mkRequest = do
                 createConversation
                     "Act exactly as a simple calculator. No extra text, just the answer."
             appendUserMessage convId "2 + 2"
-            messages <- getConversation convId
-            resp <- mkRequest [] Unstructured messages
+            resp <- getLlmResponse [] Unstructured convId
             appendMessage convId resp
             conv <- getConversation convId
             pure (resp, conv)
@@ -69,7 +49,7 @@ specWithProvider runEffectStack mkRequest = do
                 createConversation
                     "You are the users assistant. When asked about contacts or phone numbers, use the available tools to find the information."
             appendUserMessage convId "What is my friend John's last name?"
-            msgs <- respondWithTools mkRequest [listContacts] convId
+            msgs <- respondWithTools  [listContacts] convId
             pure msgs
         response
             `shouldSatisfy` any
@@ -86,7 +66,6 @@ specWithProvider runEffectStack mkRequest = do
             appendUserMessage convId "What is John's phone number?"
             msgs <-
                 respondWithTools
-                    mkRequest
                     [listContacts, showPhoneNumber]
                     convId
             pure msgs
@@ -118,7 +97,7 @@ specWithProvider runEffectStack mkRequest = do
             (_, val) <- runEffectStack $ do
                 convId <- createConversation "You are a helpful assistant. Always provide direct answers."
                 appendUserMessage convId "What is 2+2? Reply with a JSON object containing the field 'answer' with the numeric result."
-                respondWithToolsJson mkRequest [] convId
+                respondWithToolsJson [] convId
             val `shouldSatisfy` \v ->
                 case v of
                     Object obj -> "answer" `elem` keys obj
@@ -129,7 +108,7 @@ specWithProvider runEffectStack mkRequest = do
                 convId <-
                     createConversation "You are a helpful assistant. Provide structured data when requested."
                 appendUserMessage convId "Tell me about Albert Einstein. Include his name and approximate age at death."
-                respondWithToolsStructured @PersonInfo mkRequest [] convId
+                respondWithToolsStructured @PersonInfo [] convId
             name `shouldSatisfy` T.isInfixOf "Einstein"
             age `shouldSatisfy` (> 70)
 
@@ -140,7 +119,6 @@ specWithProvider runEffectStack mkRequest = do
                         "You are a helpful assistant. Use tools when needed and provide structured responses."
                 appendUserMessage convId "Get John's information and return it as structured data."
                 respondWithToolsStructured @ContactInfo
-                    mkRequest
                     [listContacts, showPhoneNumber]
                     convId
             name `shouldSatisfy` T.isInfixOf "John"

@@ -1,6 +1,6 @@
+{-# LANGUAGE RecordWildCards #-}
 module Effectful.OpenAI where
 
-import Control.Lens
 import Data.Generics.Labels ()
 import Effectful
 import Effectful.Dispatch.Dynamic
@@ -9,7 +9,7 @@ import Effectful.Exception
 import Effectful.TH
 import OpenAI.V1
 import OpenAI.V1.Chat.Completions
-import Relude
+import Relude hiding (Reader, runReader, ask)
 import Servant.Client (ClientError)
 import ChatCompletion.Error
 
@@ -25,8 +25,8 @@ data OpenAIConfig = OpenAIConfig
     , baseUrl :: Text
     , organizationId :: Maybe Text
     , projectId :: Maybe Text
+ --   , requestLogger :: forall es. Maybe ConversationId -> Value -> Eff es ()
     }
-    deriving stock (Generic)
 
 defaultOpenAIConfig :: Text -> OpenAIConfig
 defaultOpenAIConfig apiKey = OpenAIConfig
@@ -34,6 +34,7 @@ defaultOpenAIConfig apiKey = OpenAIConfig
     , baseUrl = "https://api.openai.com"
     , organizationId = Nothing
     , projectId = Nothing
+  --  , requestLogger = \_ _ -> pure ()
     }
 
 runOpenAI
@@ -44,18 +45,22 @@ runOpenAI
     => OpenAIConfig
     -> Eff (OpenAI ': es) a
     -> Eff es a
-runOpenAI cfg eff = do
-    clientEnv <- liftIO . getClientEnv $ cfg ^. #baseUrl
+runOpenAI OpenAIConfig {..} eff = do
+    clientEnv <- liftIO . getClientEnv $ baseUrl
     let Methods{createChatCompletion} =
             makeMethods
                 clientEnv
-                (cfg ^. #apiKey)
-                (cfg ^. #organizationId)
-                (cfg ^. #projectId)
+                apiKey
+                organizationId
+                projectId
 
     interpretWith eff \_ -> \case
-        ChatCompletion ccc ->
-            try @ClientError (liftIO $ createChatCompletion ccc)
-                >>= either (throwError . LlmRequestError) pure
+        ChatCompletion ccc -> do
+            response <- try @ClientError (liftIO $ createChatCompletion ccc)
+            case response of
+                Right r -> do
+                    pure r
+                Left err -> do
+                    throwError $ LlmRequestError err
 
 

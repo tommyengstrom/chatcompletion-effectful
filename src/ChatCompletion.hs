@@ -24,60 +24,59 @@ import Relude
 
 -- | Send a user message and handle any tool calls automatically
 respondWithTools
-    :: ( HasCallStack,  ChatCompletionStorage :> es
+    :: ( HasCallStack
+       , ChatCompletionStorage :> es
        , Time :> es
-       , Error LlmRequestError :> es
        , Error ChatExpectationError :> es
+       , LlmChat :> es
        )
-    => LlmRequestHandler es
-    -> [ToolDef es] -- Tools available for this conversation
+    => [ToolDef es] -- Tools available for this conversation
     -> ConversationId
     -> Eff es [ChatMsg] -- Returns all new messages (assistant responses and tool calls)
-respondWithTools handler tools convId =
-    fst <$> respondWithTools' handler Unstructured tools convId
+respondWithTools tools convId =
+    fst <$> respondWithTools' Unstructured tools convId
 
 -- | Send a user message and handle any tool calls automatically
 respondWithToolsStructured
     :: forall a es
      . ( HasCallStack
        , ToSchema a
-       , Error LlmRequestError :> es
        , Time :> es
        , FromJSON a
        , ChatCompletionStorage :> es
        , Error ChatExpectationError :> es
+       , LlmChat :> es
        )
-    => LlmRequestHandler es
-    -> [ToolDef es] -- Tools available for this conversation
+    => [ToolDef es] -- Tools available for this conversation
     -> ConversationId
     -> Eff es ([ChatMsg], a)
-respondWithToolsStructured handler tools convId = do
+respondWithToolsStructured tools convId = do
     (msgs, lastMsgContent) <-
         respondWithTools'
-            handler
             (JsonSchema . toJSON . toInlinedSchema $ Proxy @a)
             tools
             convId
-    a <- either (throwError . ChatExpectationError) pure $
-                    eitherDecodeStrictText lastMsgContent
+    a <-
+        either (throwError . ChatExpectationError) pure $
+            eitherDecodeStrictText lastMsgContent
     pure (msgs, a)
 
 respondWithToolsJson
     :: forall es
      . ( HasCallStack
-       ,  Time :> es
-       , Error LlmRequestError :> es
+       , Time :> es
        , Error ChatExpectationError :> es
        , ChatCompletionStorage :> es
+       , LlmChat :> es
        )
-    => LlmRequestHandler es
-    -> [ToolDef es] -- Tools available for this conversation
+    => [ToolDef es] -- Tools available for this conversation
     -> ConversationId
     -> Eff es ([ChatMsg], Value)
-respondWithToolsJson handler tools convId = do
-    (msgs, lastMsgContent) <- respondWithTools' handler JsonValue tools convId
-    a <- either (throwError . ChatExpectationError) pure $
-                    eitherDecodeStrictText lastMsgContent
+respondWithToolsJson tools convId = do
+    (msgs, lastMsgContent) <- respondWithTools' JsonValue tools convId
+    a <-
+        either (throwError . ChatExpectationError) pure $
+            eitherDecodeStrictText lastMsgContent
     pure (msgs, a)
 
 -- | Send a user message and handle any tool calls automatically
@@ -85,18 +84,17 @@ respondWithTools'
     :: ( HasCallStack
        , ChatCompletionStorage :> es
        , Time :> es
-       , Error LlmRequestError :> es
        , Error ChatExpectationError :> es
+       , LlmChat :> es
        )
-    => LlmRequestHandler es
-    -> ResponseFormat
+    => ResponseFormat
     -> [ToolDef es]
     -- ^ Tools available for these calls
     -> ConversationId
     -> Eff es ([ChatMsg], Text)
     -- ^ Returns all new messages (assistant responses and tool calls)
-respondWithTools' handler responseFormat tools convId = do
-    msgs <- handleToolLoop handler responseFormat tools convId []
+respondWithTools' responseFormat tools convId = do
+    msgs <- handleToolLoop responseFormat tools convId []
 
     case L.reverse msgs of
         AssistantMsg{content} : _ -> pure (msgs, content)
@@ -145,19 +143,18 @@ executeToolCalls tools toolCalls = do
 handleToolLoop
     :: ( ChatCompletionStorage :> es
        , Time :> es
-       , Error LlmRequestError :> es
        , Error ChatExpectationError :> es
+       , LlmChat :> es
        )
-    => LlmRequestHandler es
-    -> ResponseFormat
+    => ResponseFormat
     -> [ToolDef es]
     -> ConversationId
     -> [ChatMsg] -- Accumulated responses
     -> Eff es [ChatMsg]
-handleToolLoop requestHandler responseFormat tools convId accumulated = do
+handleToolLoop responseFormat tools convId accumulated = do
     conv <- getConversation convId
 
-    response <- requestHandler (toToolDeclaration <$> tools) responseFormat conv
+    response <- getLlmResponse (toToolDeclaration <$> tools) responseFormat convId
     appendMessage convId response
 
     case response of
@@ -171,7 +168,6 @@ handleToolLoop requestHandler responseFormat tools convId accumulated = do
             let newMessages = drop (length conv + 1) updatedConv -- +1 to skip the ToolCallMsg we already streamed
             -- Stream the tool response messages
             handleToolLoop
-                requestHandler
                 responseFormat
                 tools
                 convId

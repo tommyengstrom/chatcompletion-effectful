@@ -17,12 +17,13 @@ import Effectful.Time
 runEffectStack
     :: TVar (Map ConversationId [ChatMsg])
     -> Eff
-        '[ OpenAI
-         , Time
-         , Error LlmRequestError
+        '[ LlmChat
          , ChatCompletionStorage
+         , OpenAI
          , Error ChatStorageError
          , Error ChatExpectationError
+         , Error LlmRequestError
+         , Time
          , IOE
          ]
         a
@@ -32,12 +33,13 @@ runEffectStack tvar action = do
 
     -- The handlers expect this effect order
     runEff
-        . runErrorNoCallStackWith (error . show)
-        . runErrorNoCallStackWith (error . show)
-        . runChatCompletionStorageInMemory tvar
-        . runErrorNoCallStackWith (error . show)
         . runTime
-        $ runOpenAI cfg action
+        . runErrorNoCallStackWith (error . show)
+        . runErrorNoCallStackWith (error . show)
+        . runErrorNoCallStackWith (error . show)
+        . runOpenAI cfg
+        . runChatCompletionStorageInMemory tvar
+        $ runLlmChat defaultChatCompletionSettings action
         -- - $ runChatCompletionOpenAi settings action
 
 spec :: Spec
@@ -45,7 +47,6 @@ spec = describe "ChatCompletion Provider - OpenAI" $ do
     -- Run common tests
     tvar <- runIO $ newTVarIO mempty
     specWithProvider (runEffectStack tvar)
-        (mkChatCompletionRequest defaultChatCompletionSettings)
 
     -- OpenAI-specific tests can be added here
     describe "OpenAI-specific features" $ do

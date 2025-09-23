@@ -14,11 +14,9 @@ import Data.Generics.Labels ()
 import Data.Generics.Product
 import Data.Map qualified as Map
 import Data.Text.Lazy qualified as TL
-import Data.Time
 import Data.Vector (Vector)
 import Data.Vector qualified as V
 import Effectful
-import Effectful.Dispatch.Dynamic
 import Effectful.Error.Static
 import Effectful.OpenAI
 import Effectful.Time
@@ -34,88 +32,109 @@ import OpenAI.V1.Tool qualified as OpenAiTool
 import OpenAI.V1.ToolCall qualified as OpenAiTC
 import Relude
 import Prelude qualified
+import Effectful.Dispatch.Dynamic
+import ChatCompletion.Storage.Effect
 
-data ChatCompletionSettings es = ChatCompletionSettings
+data ChatCompletionSettings es  = ChatCompletionSettings
     { model :: Model
     , overrides :: CreateChatCompletion -> CreateChatCompletion
-    , requestLogger :: Value -> Eff es ()
-    }
-    deriving stock (Generic)
+    , requestLogger :: ConversationId -> NativeMsgFormat -> Eff es ()
+    } deriving stock Generic
 
 defaultChatCompletionSettings :: ChatCompletionSettings es
 defaultChatCompletionSettings =
     ChatCompletionSettings
         { model = "gpt-5-nano"
         , overrides = Prelude.id
-        , requestLogger = \_ -> pure ()
+        , requestLogger = \_ _ -> pure ()
         }
 
-runChatCompletion
+runLlmChat
     :: ( Time :> es
        , Error ChatExpectationError :> es
-       , Error LlmRequestError :> es
+       , ChatCompletionStorage :> es
        , OpenAI :> es
        )
     => ChatCompletionSettings es
     -> Eff (LlmChat ': es) a
     -> Eff es a
-runChatCompletion settings = interpret \_ -> \case
-    GetLlmResponse tools responseFormat messages ->
-        mkChatCompletionRequest settings tools responseFormat messages
+runLlmChat ChatCompletionSettings {..} = interpret \_ -> \case
+    GetLlmResponse tools' responseFormat convId -> do
+        messages <- getConversation convId
+        let tools = fmap mkToolFromDeclaration tools'
 
-mkChatCompletionRequest
-    :: ( Time :> es
-       , Error ChatExpectationError :> es
-       , Error LlmRequestError :> es
-       , OpenAI :> es
-       )
-    => ChatCompletionSettings es
-    -> LlmRequestHandler es
-mkChatCompletionRequest settings tools' responseFormat messages = do
-    let tools = fmap mkToolFromDeclaration tools'
+            req :: CreateChatCompletion
+            req =
+                overrides _CreateChatCompletion
+                    & #messages .~ V.fromList (toOpenAIMessage <$> messages)
+                    & #model .~ model
+                    & ( case tools of
+                            [] -> Relude.id
+                            _ -> #tools ?~ V.fromList tools
+                      )
+                    & #response_format .~ case responseFormat of
+                        Unstructured -> Nothing
+                        JsonValue -> Just RF.JSON_Object
+                        JsonSchema schema ->
+                            Just
+                                $ RF.JSON_Schema
+                                    RF.JSONSchema
+                                        { description = Nothing
+                                        , name = "response_format"
+                                        , schema = Just schema
+                                        , strict = Nothing
+                                        }
+        requestLogger convId . NativeMsgOut $ toJSON req
+        chatCompletionObject <- chatCompletion req
+        requestLogger convId . NativeMsgIn $ toJSON chatCompletionObject
+        now <- currentTime
+        openAiMsg <-
+            maybe (throwError $ ChatExpectationError "No message in OpenAI response") pure
+                $ chatCompletionObject
+                ^? #choices . taking 1 folded . #message
+        either throwError pure $ toChatMsgIn now openAiMsg
 
-        req :: CreateChatCompletion
-        req =
-            (settings ^. #overrides) _CreateChatCompletion
-                & #messages .~ V.fromList (toOpenAIMessage <$> messages)
-                & #model .~ settings ^. #model
-                & ( case tools of
-                        [] -> Relude.id
-                        _ -> #tools ?~ V.fromList tools
-                  )
-                & #response_format .~ case responseFormat of
-                    Unstructured -> Nothing
-                    JsonValue -> Just RF.JSON_Object
-                    JsonSchema schema ->
-                        Just
-                            $ RF.JSON_Schema
-                                RF.JSONSchema
-                                    { description = Nothing
-                                    , name = "response_format"
-                                    , schema = Just schema
-                                    , strict = Nothing
-                                    }
-    (settings ^. #requestLogger) (toJSON $ toJSON req)
-    response <- runErrorNoCallStack @LlmRequestError $ chatCompletion req
-    case response of
-        Left (LlmRequestError err) -> do
-            (settings ^. #requestLogger) (toJSON $ displayException err)
-            throwError (LlmRequestError err)
-        Right chatCompletionObject -> do
-            (settings ^. #requestLogger) (toJSON chatCompletionObject)
-            now <- currentTime
-            let chatMsg :: Either String ChatMsg
-                chatMsg = do
-                    openAiMsg <-
-                        maybe (Left "No message in OpenAI response") Right
-                            $ chatCompletionObject
-                            ^? #choices
-                                . taking 1 folded
-                                . #message
-                    fromOpenAIMessage now openAiMsg
-            case chatMsg of
-                Right msg -> pure msg
-                Left err -> throwError $ ChatExpectationError err
+-- mkChatCompletionRequest
+--     :: ( Time :> es
+--        , Error ChatExpectationError :> es
+--        , OpenAI :> es
+--        )
+--     => ChatCompletionSettings es
+--     -> [ToolDeclaration]
+--     -> ResponseFormat
+--     -> [ChatMsg]
+--     -> Eff es ChatMsg
+-- mkChatCompletionRequest ChatCompletionSettings {..} tools' responseFormat messages = do
+--     let tools = fmap mkToolFromDeclaration tools'
+--
+--         req :: CreateChatCompletion
+--         req =
+--             overrides _CreateChatCompletion
+--                 & #messages .~ V.fromList (toOpenAIMessage <$> messages)
+--                 & #model .~ model
+--                 & ( case tools of
+--                         [] -> Relude.id
+--                         _ -> #tools ?~ V.fromList tools
+--                   )
+--                 & #response_format .~ case responseFormat of
+--                     Unstructured -> Nothing
+--                     JsonValue -> Just RF.JSON_Object
+--                     JsonSchema schema ->
+--                         Just
+--                             $ RF.JSON_Schema
+--                                 RF.JSONSchema
+--                                     { description = Nothing
+--                                     , name = "response_format"
+--                                     , schema = Just schema
+--                                     , strict = Nothing
+--                                     }
+--     chatCompletionObject <- chatCompletion req
+--     now <- currentTime
+--     openAiMsg <-
+--         maybe (throwError $ ChatExpectationError "No message in OpenAI response") pure
+--             $ chatCompletionObject
+--             ^? #choices . taking 1 folded . #message
+--     either throwError pure $ toChatMsgIn now openAiMsg
 
 toOpenAIMessage :: ChatMsg -> Message (Vector Content)
 toOpenAIMessage msg = case msg of
@@ -173,10 +192,10 @@ mkToolFromDeclaration t =
             }
 
 instance IsChatMsg (Message Text) (Message (Vector Content)) where
-    toChatMsgIn = \case
+    toChatMsgIn createdAt = \case
         Assistant{tool_calls = Just tcs} ->
             Right
-                ToolCallMsgIn
+                ToolCallMsg
                     { toolCalls = do
                         tc <- V.toList tcs
                         pure
@@ -187,43 +206,45 @@ instance IsChatMsg (Message Text) (Message (Vector Content)) where
                                     Right (Object km) -> Map.mapKeys Key.toText (KM.toMap km)
                                     _ -> mempty
                                 }
+                    , createdAt
                     }
         Assistant{assistant_content} ->
             Right
-                AssistantMsgIn
+                AssistantMsg
                     { content = fromMaybe "" assistant_content
+                    , createdAt
                     }
-        System{} -> Left "misuse of fromOpenAIMessage: System messages are not supported"
-        User{} -> Left "misuse of fromOpenAIMessage: User messages are not supported"
-        Tool{} -> Left "misuse of fromOpenAIMessage: Tool messages are not supported"
+        System{} -> Left $ ChatExpectationError "System messages are not supported"
+        User{} -> Left $ ChatExpectationError "User messages are not supported"
+        Tool{} -> Left $ ChatExpectationError "Tool messages are not supported"
 
     fromChatMsg = toOpenAIMessage
 
--- | Convert the reponse from OpenAI to the internal ChatMsg format.
--- Only assistant message are supported.
-fromOpenAIMessage :: UTCTime -> Message Text -> Either String ChatMsg
-fromOpenAIMessage now = \case
-    Assistant{tool_calls = Just tcs} ->
-        Right
-            ToolCallMsg
-                { toolCalls = do
-                    tc <- V.toList tcs
-                    pure
-                        $ ToolCall
-                            { toolCallId = tc ^. #id . to ToolCallId
-                            , toolName = tc ^. #function . #name
-                            , toolArgs = case eitherDecodeStrictText (tc ^. #function . #arguments) of
-                                Right (Object km) -> Map.mapKeys Key.toText (KM.toMap km)
-                                _ -> mempty
-                            }
-                , createdAt = now
-                }
-    Assistant{assistant_content} ->
-        Right
-            AssistantMsg
-                { content = fromMaybe "" assistant_content
-                , createdAt = now
-                }
-    System{} -> Left "misuse of fromOpenAIMessage: System messages are not supported"
-    User{} -> Left "misuse of fromOpenAIMessage: User messages are not supported"
-    Tool{} -> Left "misuse of fromOpenAIMessage: Tool messages are not supported"
+---- | Convert the reponse from OpenAI to the internal ChatMsg format.
+---- Only assistant message are supported.
+-- fromOpenAIMessage :: UTCTime -> Message Text -> Either String ChatMsg
+-- fromOpenAIMessage now = \case
+--    Assistant{tool_calls = Just tcs} ->
+--        Right
+--            ToolCallMsg
+--                { toolCalls = do
+--                    tc <- V.toList tcs
+--                    pure
+--                        $ ToolCall
+--                            { toolCallId = tc ^. #id . to ToolCallId
+--                            , toolName = tc ^. #function . #name
+--                            , toolArgs = case eitherDecodeStrictText (tc ^. #function . #arguments) of
+--                                Right (Object km) -> Map.mapKeys Key.toText (KM.toMap km)
+--                                _ -> mempty
+--                            }
+--                , createdAt = now
+--                }
+--    Assistant{assistant_content} ->
+--        Right
+--            AssistantMsg
+--                { content = fromMaybe "" assistant_content
+--                , createdAt = now
+--                }
+--    System{} -> Left "misuse of fromOpenAIMessage: System messages are not supported"
+--    User{} -> Left "misuse of fromOpenAIMessage: User messages are not supported"
+--    Tool{} -> Left "misuse of fromOpenAIMessage: Tool messages are not supported"
