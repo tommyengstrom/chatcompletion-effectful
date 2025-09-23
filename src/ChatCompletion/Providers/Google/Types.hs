@@ -5,17 +5,19 @@ module ChatCompletion.Providers.Google.Types where
 import Data.Aeson
 import Data.Vector (Vector)
 import Relude
+import Effectful (Eff)
+import ChatCompletion
 
 -- | Google API Key
 newtype GoogleApiKey = GoogleApiKey Text
     deriving stock (Show, Eq, Ord, Generic)
 
 -- | Google provider settings
-data GoogleSettings = GoogleSettings
+data GoogleSettings es = GoogleSettings
     { apiKey :: GoogleApiKey
     , model :: Text
     , baseUrl :: Text
-    , requestLogger :: Value -> IO ()
+    , requestLogger :: ConversationId -> NativeMsgFormat -> Eff es ()
     }
     deriving stock (Generic)
 

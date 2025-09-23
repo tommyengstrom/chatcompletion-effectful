@@ -45,12 +45,3 @@ runChatCompletionStorageInMemory tvar = interpret \_ -> \case
         conversations <- readTVarIO tvar
         pure $ Map.keys conversations
 
-toChatMsg :: IOE :> es => ChatMsgIn -> Eff es ChatMsg
-toChatMsg msgIn = do
-    createdAt <- liftIO getCurrentTime
-    pure case msgIn of
-        SystemMsgIn {..} -> SystemMsg {..}
-        UserMsgIn{..} -> UserMsg{..}
-        AssistantMsgIn{..} -> AssistantMsg{..}
-        ToolCallMsgIn{..} -> ToolCallMsg{..}
-        ToolCallResponseMsgIn{..} -> ToolCallResponseMsg{..}
