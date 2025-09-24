@@ -1,7 +1,10 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module ChatCompletion.Providers.OpenAI.ChatCompletion where
+module ChatCompletion.Providers.OpenAI.ChatCompletion
+    ( module ChatCompletion.Providers.OpenAI.ChatCompletion
+    , CreateChatCompletion (..)
+    ) where
 
 import ChatCompletion.Effect
 import ChatCompletion.Storage.Effect
