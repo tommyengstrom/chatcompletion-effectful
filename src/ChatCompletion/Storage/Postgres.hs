@@ -24,7 +24,7 @@ import Effectful.Time
 import Effectful.Dispatch.Dynamic
 import Effectful.Error.Static
 import Relude
-import UnliftIO (finally, try)
+import UnliftIO (finally)
 
 
 -- | Configuration for PostgreSQL connection pooling
@@ -97,22 +97,6 @@ instance FromRow MessageRow where
     fromRow = MessageRow <$> PG.field <*> PG.field <*> PG.field <*> PG.field
 
 
--- Helper function to convert ChatMsgIn to ChatMsg with timestamp
---chatMsgFromIn :: ChatMsgIn -> UTCTime -> ChatMsg
---chatMsgFromIn msgIn createdAt = case msgIn of
---    SystemMsgIn {..} -> SystemMsg {..}
---    UserMsgIn {..} -> UserMsg {..}
---    AssistantMsgIn {..} -> AssistantMsg {..}
---    ToolCallMsgIn {..} -> ToolCallMsg {..}
---    ToolCallResponseMsgIn {..}  -> ToolCallResponseMsg {..}
-
--- | Check if a connection is healthy
-isHealthyConnection :: Connection -> IO Bool
-isHealthyConnection conn = do
-    result <- try $ query_ conn "SELECT 1" :: IO (Either SomeException [Only Int])
-    pure $ case result of
-        Right [Only 1] -> True
-        _ -> False
 
 -- | Create a new connection pool
 createPostgresPool :: PostgresConfig -> IO (Pool Connection)
@@ -120,55 +104,14 @@ createPostgresPool config =
     Pool.newPool
         $ Pool.setNumStripes (Just $ config ^. #poolStripes)
         $ Pool.defaultPoolConfig
-            createConnection
-            closeConnection
+            (connectPostgreSQL (config ^. #connectionString))
+            close
             (realToFrac $ config ^. #connectionTimeout)
             (config ^. #poolSize)
-  where
-    createConnection = do
-        conn <- connectPostgreSQL (config ^. #connectionString)
-        healthy <- isHealthyConnection conn
-        if healthy
-            then pure conn
-            else do
-                close conn
-                error "Failed to create healthy connection"
-    closeConnection = close
 
 -- | Run an action with a connection from the pool
 withPooledConnection :: Pool Connection -> (Connection -> IO a) -> IO a
 withPooledConnection = Pool.withResource
-
--- | Pool metrics for monitoring
-data PoolMetrics = PoolMetrics
-    { activeConnections :: Int
-    , idleConnections :: Int
-    , pendingRequests :: Int
-    , totalCreated :: Int
-    , totalDestroyed :: Int
-    }
-    deriving stock (Show, Eq, Generic)
-
--- | Get current pool metrics (simplified version as resource-pool doesn't expose detailed metrics)
-getPoolMetrics :: PostgresPool -> IO PoolMetrics
-getPoolMetrics _pgPool =
-    -- The resource-pool library doesn't expose detailed metrics
-    -- This is a placeholder that could be enhanced with custom tracking
-    pure
-        $ PoolMetrics
-            { activeConnections = 0 -- Would need custom tracking
-            , idleConnections = 0 -- Would need custom tracking
-            , pendingRequests = 0 -- Would need custom tracking
-            , totalCreated = 0 -- Would need custom tracking
-            , totalDestroyed = 0 -- Would need custom tracking
-            }
-
--- | Create a PostgresPool from config
-withPostgresPool :: PostgresConfig -> (PostgresPool -> IO a) -> IO a
-withPostgresPool config action = do
-    pool' <- createPostgresPool config
-    let pgPool = PostgresPool pool' config
-    finally (action pgPool) (Pool.destroyAllResources pool')
 
 runChatCompletionStoragePostgres
     :: forall es a

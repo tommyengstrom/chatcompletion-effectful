@@ -77,21 +77,6 @@ spec = describe "PostgreSQL Connection Pooling" $ do
 
             cleanup
 
-        it "creates healthy connections" $ do
-            conn <- connectPostgreSQL connectionString
-            healthy <- isHealthyConnection conn
-            close conn
-            healthy `shouldBe` True
-
-        it "rejects unhealthy connections" $ do
-            -- This test would need a way to simulate an unhealthy connection
-            -- For now, we just verify the health check works on good connections
-            withPostgresPool config $ \pool -> do
-                -- The pool should be created successfully
-                metrics <- getPoolMetrics pool
-                -- Metrics are placeholders for now
-                metrics `shouldBe` PoolMetrics 0 0 0 0 0
-
     describe "Backward compatibility" $ do
         it "runChatCompletionStoragePostgres' works with default pool" $ do
             cleanup

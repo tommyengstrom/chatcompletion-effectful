@@ -13,6 +13,7 @@ import Test.Hspec
 import ChatCompletion.Providers.OpenAI.ChatCompletion
 import System.Environment (getEnv)
 import Effectful.Time
+import Effectful.Concurrent
 
 runEffectStack
     :: TVar (Map ConversationId [ChatMsg])
@@ -24,6 +25,7 @@ runEffectStack
          , Error ChatExpectationError
          , Error LlmRequestError
          , Time
+         , Concurrent
          , IOE
          ]
         a
@@ -33,6 +35,7 @@ runEffectStack tvar action = do
 
     -- The handlers expect this effect order
     runEff
+        . runConcurrent
         . runTime
         . runErrorNoCallStackWith (error . show)
         . runErrorNoCallStackWith (error . show)

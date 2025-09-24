@@ -11,6 +11,7 @@ import Effectful.Error.Static
 import Relude
 import Test.Hspec
 import Effectful.Time
+import Effectful.Concurrent
 
 runGoogle
     :: TVar (Map ConversationId [ChatMsg])
@@ -21,6 +22,7 @@ runGoogle
          , Error ChatStorageError
          , Error LlmRequestError
          , Time
+         , Concurrent
          , IOE
          ]
         a
@@ -33,6 +35,7 @@ runGoogle tvar action = do
             =<< lookupEnv "GEMINI_API_KEY"
     let settings = defaultGoogleSettings apiKey
     runEff
+        . runConcurrent
         . runTime
         . runErrorNoCallStackWith (error . show)
         . runErrorNoCallStackWith (error . show)

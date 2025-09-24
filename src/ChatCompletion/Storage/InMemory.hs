@@ -7,27 +7,30 @@ import ChatCompletion.Types
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe
-import Data.Time
 import Data.UUID.V4 (nextRandom)
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effectful.Error.Static
-import UnliftIO
 import Prelude
+import Effectful.Time
+import GHC.IO (unsafePerformIO)
+import Effectful.Concurrent
+import Effectful.Concurrent.STM
 
 
 runChatCompletionStorageInMemory
     :: forall es a
-     . ( IOE :> es
+     . ( Time :> es
        , Error ChatStorageError :> es
+       , Concurrent :> es
        )
     => TVar (Map ConversationId [ChatMsg])
     -> Eff (ChatCompletionStorage ': es) a
     -> Eff es a
 runChatCompletionStorageInMemory tvar = interpret \_ -> \case
     CreateConversation systemPrompt -> do
-        conversationId <- ConversationId <$> liftIO nextRandom
-        timestamp <- liftIO getCurrentTime
+        conversationId <- ConversationId <$> pure (unsafePerformIO nextRandom)
+        timestamp <- currentTime
         atomically $
             modifyTVar' tvar (Map.insert conversationId [SystemMsg systemPrompt timestamp])
         pure conversationId

@@ -146,6 +146,7 @@ tests:
       - uuid
       - vector
       - yaml
+
   chatcompletion-effectful-test:
     main:                Main.hs
     source-dirs:         test
@@ -171,12 +172,9 @@ tests:
     - monad-time-effectful
     - mtl
     - openai
-    - openai
     - openapi3
     - postgresql-simple
-    - postgresql-simple
     - pretty-simple
-    - QuickCheck
     - QuickCheck
     - relude
     - text

@@ -23,6 +23,7 @@ ghciwatch \
   --watch test \
   --watch package.yaml \
   --restart-glob "**/*.cabal" \
+  --restart-glob "package.yaml" \
   --restart-glob "**/package.yaml" \
   --restart-glob "cabal.project" \
   --error-file $LOG_FILE

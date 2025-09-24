@@ -18,6 +18,7 @@ import Relude
 import Test.Hspec
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
+import Effectful.Concurrent (Concurrent, runConcurrent)
 
 instance Arbitrary ConversationId where
     arbitrary =
@@ -32,12 +33,14 @@ runEffStack
     :: Eff
         '[ Error ChatStorageError
          , Time
+         , Concurrent
          , IOE
          ]
         a
     -> IO (Either ChatStorageError a)
 runEffStack =
     runEff
+        . runConcurrent
         . runTime
         . runErrorNoCallStack
 
@@ -55,6 +58,7 @@ specGeneralized
     :: ( forall a es
           . ( Error ChatStorageError :> es
             , Time :> es
+            , Concurrent :> es
             , IOE :> es
             )
          => Eff (ChatCompletionStorage ': es) a
