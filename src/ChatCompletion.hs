@@ -27,7 +27,7 @@ respondWithTools
     :: ( HasCallStack
        , ChatCompletionStorage :> es
        , Time :> es
-       , Error ChatExpectationError :> es
+       , Error LlmChatError :> es
        , LlmChat :> es
        )
     => [ToolDef es] -- Tools available for this conversation
@@ -44,7 +44,7 @@ respondWithToolsStructured
        , Time :> es
        , FromJSON a
        , ChatCompletionStorage :> es
-       , Error ChatExpectationError :> es
+       , Error LlmChatError :> es
        , LlmChat :> es
        )
     => [ToolDef es] -- Tools available for this conversation
@@ -57,7 +57,7 @@ respondWithToolsStructured tools convId = do
             tools
             convId
     a <-
-        either (throwError . ChatExpectationError) pure $
+        either (throwError . LlmExpectationError) pure $
             eitherDecodeStrictText lastMsgContent
     pure (msgs, a)
 
@@ -65,7 +65,7 @@ respondWithToolsJson
     :: forall es
      . ( HasCallStack
        , Time :> es
-       , Error ChatExpectationError :> es
+       , Error LlmChatError :> es
        , ChatCompletionStorage :> es
        , LlmChat :> es
        )
@@ -75,7 +75,7 @@ respondWithToolsJson
 respondWithToolsJson tools convId = do
     (msgs, lastMsgContent) <- respondWithTools' JsonValue tools convId
     a <-
-        either (throwError . ChatExpectationError) pure $
+        either (throwError . LlmExpectationError) pure $
             eitherDecodeStrictText lastMsgContent
     pure (msgs, a)
 
@@ -84,7 +84,7 @@ respondWithTools'
     :: ( HasCallStack
        , ChatCompletionStorage :> es
        , Time :> es
-       , Error ChatExpectationError :> es
+       , Error LlmChatError :> es
        , LlmChat :> es
        )
     => ResponseFormat
@@ -100,10 +100,10 @@ respondWithTools' responseFormat tools convId = do
         AssistantMsg{content} : _ -> pure (msgs, content)
         msg : _ ->
             throwError
-                . ChatExpectationError
+                . LlmExpectationError
                 $ "Expected the last message to be an assitant message but got: "
                     <> show msg
-        [] -> throwError $ ChatExpectationError "Assistant returned no messages"
+        [] -> throwError $ LlmExpectationError "Assistant returned no messages"
 
 -- | Execute tool calls and return the responses
 executeToolCalls
@@ -143,7 +143,7 @@ executeToolCalls tools toolCalls = do
 handleToolLoop
     :: ( ChatCompletionStorage :> es
        , Time :> es
-       , Error ChatExpectationError :> es
+       , Error LlmChatError :> es
        , LlmChat :> es
        )
     => ResponseFormat
@@ -168,7 +168,7 @@ handleToolLoop responseFormat tools convId accumulated = do
                 convId
                 (accumulated <> [response] <> toolCallResponseMsgs)
 
-        _ -> throwError $ ChatExpectationError $ "Unexpected response type: " <> show response
+        _ -> throwError $ LlmExpectationError $ "Unexpected response type: " <> show response
   where
     toToolDeclaration tool =
         ToolDeclaration

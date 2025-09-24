@@ -22,8 +22,7 @@ runEffectStack
          , ChatCompletionStorage
          , OpenAI
          , Error ChatStorageError
-         , Error ChatExpectationError
-         , Error LlmRequestError
+         , Error LlmChatError
          , Time
          , Concurrent
          , IOE
@@ -37,7 +36,6 @@ runEffectStack tvar action = do
     runEff
         . runConcurrent
         . runTime
-        . runErrorNoCallStackWith (error . show)
         . runErrorNoCallStackWith (error . show)
         . runErrorNoCallStackWith (error . show)
         . runOpenAI cfg

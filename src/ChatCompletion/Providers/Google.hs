@@ -39,8 +39,7 @@ defaultGoogleSettings apiKey =
 runChatCompletionGoogle
     :: forall es a
      . ( IOE :> es
-       , Error ChatExpectationError :> es
-       , Error LlmRequestError :> es
+       , Error LlmChatError :> es
        , ChatCompletionStorage :> es
        )
     => GoogleSettings es
@@ -50,7 +49,7 @@ runChatCompletionGoogle settings es = do
     manager <- liftIO newTlsManager
     let baseUrl' = parseBaseUrl $ T.unpack (settings ^. #baseUrl)
     case baseUrl' of
-        Left err -> throwError $ ChatExpectationError $ "Invalid base URL: " <> show err
+        Left err -> throwError $ LlmExpectationError $ "Invalid base URL: " <> show err
         Right url -> do
             let clientEnv = mkClientEnv manager url
             let generateContent = client geminiAPI
@@ -160,7 +159,7 @@ runChatCompletionGoogle settings es = do
             (settings ^. #requestLogger) convId (NativeMsgIn $ toJSON response)
 
             case response ^? #candidates . taking 1 folded . #content of
-                Nothing -> throwError $ ChatExpectationError "No content in Gemini response"
+                Nothing -> throwError $ LlmExpectationError "No content in Gemini response"
                 Just geminiContent -> do
                     now <- liftIO getCurrentTime
                     fromGeminiContent now geminiContent
@@ -169,5 +168,5 @@ runChatCompletionGoogle settings es = do
     adapt env m = do
         result <- liftIO $ runClientM m env
         case result of
-            Left err -> throwError . LlmRequestError $ err
+            Left err -> throwError . LlmClientError $ err
             Right x -> pure x

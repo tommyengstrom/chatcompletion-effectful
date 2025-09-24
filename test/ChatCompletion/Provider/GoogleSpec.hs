@@ -18,9 +18,8 @@ runGoogle
     -> Eff
         '[ LlmChat
          , ChatCompletionStorage
-         , Error ChatExpectationError
          , Error ChatStorageError
-         , Error LlmRequestError
+         , Error LlmChatError
          , Time
          , Concurrent
          , IOE
@@ -37,7 +36,6 @@ runGoogle tvar action = do
     runEff
         . runConcurrent
         . runTime
-        . runErrorNoCallStackWith (error . show)
         . runErrorNoCallStackWith (error . show)
         . runErrorNoCallStackWith (error . show)
         . runChatCompletionStorageInMemory tvar

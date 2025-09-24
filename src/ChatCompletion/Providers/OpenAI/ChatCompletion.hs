@@ -52,8 +52,7 @@ defaultChatCompletionSettings =
 
 runLlmChat
     :: ( Time :> es
-       , Error ChatExpectationError :> es
-       , Error LlmRequestError :> es
+       , Error LlmChatError :> es
        , ChatCompletionStorage :> es
        , OpenAI :> es
        )
@@ -89,14 +88,16 @@ runLlmChat ChatCompletionSettings{..} = interpret \_ -> \case
         requestLogger convId . NativeMsgOut $ toJSON req
         chatCompletionObject <-
             chatCompletion req
-                `catchError` \_ (LlmRequestError e) -> do
-                    requestLogger convId (NativeRequestFailure $ displayException e)
-                    throwError $ LlmRequestError e
+                `catchError` \_ err -> case err of
+                    LlmClientError e -> do
+                        requestLogger convId (NativeRequestFailure $ displayException e)
+                        throwError $ LlmClientError e
+                    other -> throwError other
 
         requestLogger convId . NativeMsgIn $ toJSON chatCompletionObject
         now <- currentTime
         openAiMsg <-
-            maybe (throwError $ ChatExpectationError "No message in OpenAI response") pure
+            maybe (throwError $ LlmExpectationError "No message in OpenAI response") pure
                 $ chatCompletionObject
                 ^? #choices . taking 1 folded . #message
         either throwError pure $ toChatMsgIn now openAiMsg
@@ -179,9 +180,9 @@ instance IsChatMsg (Message Text) (Message (Vector Content)) where
                     { content = fromMaybe "" assistant_content
                     , createdAt
                     }
-        System{} -> Left $ ChatExpectationError "System messages are not supported"
-        User{} -> Left $ ChatExpectationError "User messages are not supported"
-        Tool{} -> Left $ ChatExpectationError "Tool messages are not supported"
+        System{} -> Left $ LlmExpectationError "System messages are not supported"
+        User{} -> Left $ LlmExpectationError "User messages are not supported"
+        Tool{} -> Left $ LlmExpectationError "Tool messages are not supported"
 
     fromChatMsg = toOpenAIMessage
 

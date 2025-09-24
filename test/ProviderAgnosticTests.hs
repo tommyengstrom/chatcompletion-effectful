@@ -20,7 +20,7 @@ specWithProvider
     :: forall es
      . (Time :> es
         , ChatCompletionStorage :> es
-        , Error ChatExpectationError :> es
+        , Error LlmChatError :> es
         , LlmChat :> es
         )
      => (forall a. Eff es a -> IO a)

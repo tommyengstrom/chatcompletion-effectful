@@ -40,7 +40,7 @@ defaultOpenAIConfig apiKey = OpenAIConfig
 runOpenAI
     :: forall es a
      . ( IOE :> es
-       , Error LlmRequestError :> es
+       , Error LlmChatError :> es
        )
     => OpenAIConfig
     -> Eff (OpenAI ': es) a
@@ -61,6 +61,5 @@ runOpenAI OpenAIConfig {..} eff = do
                 Right r -> do
                     pure r
                 Left err -> do
-                    throwError $ LlmRequestError err
-
+                    throwError $ LlmClientError err
 

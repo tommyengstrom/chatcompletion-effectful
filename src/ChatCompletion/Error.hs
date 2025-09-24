@@ -8,11 +8,7 @@ import Data.Generics.Labels ()
 import Servant.Client (ClientError)
 import Relude
 
-data ChatExpectationError
-    = ChatExpectationError String
+data LlmChatError
+    = LlmClientError ClientError
+    | LlmExpectationError String
     deriving stock (Show, Eq, Generic)
-
-
-newtype LlmRequestError = LlmRequestError ClientError
-    deriving stock (Show, Generic)
-    deriving newtype (Eq)

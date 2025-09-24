@@ -1,6 +1,6 @@
 module ChatCompletion.PostgresPoolSpec where
 
-import ChatCompletion.Error (LlmRequestError)
+import ChatCompletion.Error (LlmChatError)
 import ChatCompletion.Storage.Effect
 import ChatCompletion.Storage.InMemorySpec (specGeneralized)
 import ChatCompletion.Storage.Postgres
@@ -55,7 +55,7 @@ spec = describe "PostgreSQL Connection Pooling" $ do
             results <- forConcurrently ([1 .. 20] :: [Int]) $ \i -> do
                 runEff
                     . runTime
-                    . runError @LlmRequestError
+                    . runError @LlmChatError
                     . runErrorNoCallStackWith @ChatStorageError (error . show)
                     $ runChatCompletionStoragePostgresWithPool config
                     $ do
@@ -95,7 +95,7 @@ spec = describe "PostgreSQL Connection Pooling" $ do
             -- Test using the backward compatible function with our test table
             result <- runEff
                     . runTime
-                . runError @LlmRequestError
+                . runError @LlmChatError
                 . runErrorNoCallStackWith @ChatStorageError (error . show)
                 $ runChatCompletionStoragePostgresWithPool testConfig do
                     convId <- createConversation "Backward compatible test"

@@ -20,7 +20,7 @@ import ChatCompletion.Error
 -- `toChatMsgIn` is subject to change if it turns out that one-to-one conversion isn't
 -- general enough.
 class (ToJSON in_, ToJSON out) => IsChatMsg in_ out | in_ -> out , out -> in_ where
-    toChatMsgIn :: UTCTime -> in_ -> Either ChatExpectationError ChatMsg
+    toChatMsgIn :: UTCTime -> in_ -> Either LlmChatError ChatMsg
 
     fromChatMsg :: ChatMsg -> out
 

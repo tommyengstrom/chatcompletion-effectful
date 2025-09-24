@@ -116,7 +116,7 @@ extractSystemMessage msgs = case msgs of
 
 -- | Convert GeminiContent to ChatMsg
 fromGeminiContent
-    :: Error ChatExpectationError :> es => UTCTime -> GeminiContent -> Eff es ChatMsg
+    :: Error LlmChatError :> es => UTCTime -> GeminiContent -> Eff es ChatMsg
 fromGeminiContent now content = case content ^. #role of
     "model" -> case V.toList (content ^. #parts) of
         [GeminiTextPart text] ->
@@ -141,7 +141,7 @@ fromGeminiContent now content = case content ^. #role of
                 cleanedText = cleanMarkdownJson combinedText
              in if null textParts
                     then
-                        throwError $ ChatExpectationError "Unexpected model content structure: no text or function calls"
+                        throwError $ LlmExpectationError "Unexpected model content structure: no text or function calls"
                     else
                         pure
                             $ AssistantMsg
@@ -150,7 +150,7 @@ fromGeminiContent now content = case content ^. #role of
                                 }
     _ ->
         throwError
-            $ ChatExpectationError
+            $ LlmExpectationError
             $ "Unexpected role in response: "
             <> content
             ^. #role
