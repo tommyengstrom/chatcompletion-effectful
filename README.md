@@ -1,4 +1,4 @@
-# chatcompletion-effectful
+# llmchat-effectful
 
 A Haskell library for building chat completion systems with OpenAI integration, persistent storage, and tool calling support.
 
@@ -24,18 +24,18 @@ A Haskell library for building chat completion systems with OpenAI integration, 
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-import ChatCompletion
-import ChatCompletion.OpenAI
-import ChatCompletion.Storage.InMemory
+import LlmChat
+import LlmChat.OpenAI
+import LlmChat.Storage.InMemory
 import Effectful
 import Effectful.Error.Static
 
 main :: IO ()
 main = runEff $ do
   runErrorNoCallStackWith (error . show) $ do
-    runChatCompletionStorageInMemory $ do
+    runLlmChatStorageInMemory $ do
       runErrorNoCallStackWith (error . show) $ do
-        runChatCompletionOpenAi settings [] $ do
+        runLlmChatOpenAi settings [] $ do
           -- Create a conversation with system prompt
           convId <- createConversation "You are a helpful assistant"
           
