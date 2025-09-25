@@ -103,50 +103,6 @@ flags:
     manual: true
 
 tests:
-  test-dev:
-    main:                Main.hs
-    source-dirs:
-      - src
-      - test
-    ghc-options: 
-    - -Wwarn
-    - -Wno-missing-home-modules   
-    dependencies:
-      - aeson
-      - base 
-      - base64-bytestring
-      - bytestring
-      - containers
-      - deepseq
-      - effectful
-      - effectful-th
-      - generic-lens
-      - hashable
-      - hspec
-      - http-api-data
-      - http-client
-      - http-client-tls
-      - http-types
-      - lens
-      - monad-time-effectful
-      - mtl
-      - openai
-      - openapi3
-      - postgresql-simple
-      - pretty-simple
-      - QuickCheck
-      - relude
-      - resource-pool
-      - servant
-      - servant-client
-      - text
-      - time
-      - unliftio
-      - unordered-containers
-      - uuid
-      - vector
-      - yaml
-
   chatcompletion-effectful-test:
     main:                Main.hs
     source-dirs:         test
