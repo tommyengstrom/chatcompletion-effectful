@@ -2,7 +2,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module ChatCompletion.Error where
+module LlmChat.Error where
 
 import Data.Generics.Labels ()
 import Servant.Client (ClientError)

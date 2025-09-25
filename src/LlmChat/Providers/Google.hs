@@ -1,14 +1,14 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module ChatCompletion.Providers.Google where
+module LlmChat.Providers.Google where
 
-import ChatCompletion.Effect
-import ChatCompletion.Providers.Google.API
-import ChatCompletion.Providers.Google.Convert
-import ChatCompletion.Providers.Google.Types
-import ChatCompletion.Storage.Effect
-import ChatCompletion.Types
+import LlmChat.Effect
+import LlmChat.Providers.Google.API
+import LlmChat.Providers.Google.Convert
+import LlmChat.Providers.Google.Types
+import LlmChat.Storage.Effect
+import LlmChat.Types
 import Control.Lens hiding ((.=))
 import Data.Aeson (toJSON)
 import Data.Aeson.Text (encodeToLazyText)
@@ -36,16 +36,16 @@ defaultGoogleSettings apiKey =
         }
 
 -- | Run the LlmChat effect using Google's Gemini API
-runChatCompletionGoogle
+runLlmChatGoogle
     :: forall es a
      . ( IOE :> es
        , Error LlmChatError :> es
-       , ChatCompletionStorage :> es
+       , LlmChatStorage :> es
        )
     => GoogleSettings es
     -> Eff (LlmChat ': es) a
     -> Eff es a
-runChatCompletionGoogle settings es = do
+runLlmChatGoogle settings es = do
     manager <- liftIO newTlsManager
     let baseUrl' = parseBaseUrl $ T.unpack (settings ^. #baseUrl)
     case baseUrl' of
@@ -53,14 +53,14 @@ runChatCompletionGoogle settings es = do
         Right url -> do
             let clientEnv = mkClientEnv manager url
             let generateContent = client geminiAPI
-            runChatCompletion generateContent clientEnv es
+            runLlmChat generateContent clientEnv es
   where
-    runChatCompletion
+    runLlmChat
         :: ([Text] -> Text -> GeminiChatRequest -> ClientM GeminiChatResponse)
         -> ClientEnv
         -> Eff (LlmChat ': es) a
         -> Eff es a
-    runChatCompletion generateContent clientEnv = interpret \_ -> \case
+    runLlmChat generateContent clientEnv = interpret \_ -> \case
         GetLlmResponse tools' responseFormat convId -> do
             let hasTools = not (null tools')
             let tools =

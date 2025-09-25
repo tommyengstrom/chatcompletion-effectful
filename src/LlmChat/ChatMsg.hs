@@ -1,4 +1,4 @@
-module ChatCompletion.ChatMsg where
+module LlmChat.ChatMsg where
 
 import Control.Lens
 import Data.Aeson
@@ -14,7 +14,7 @@ import Data.OpenApi.Lens
 import Data.OpenApi.Schema (ToSchema (..))
 import Data.Time
 import Relude
-import ChatCompletion.Error
+import LlmChat.Error
 
 -- | Conversion between the message type used by the provider and our representation
 -- `toChatMsgIn` is subject to change if it turns out that one-to-one conversion isn't

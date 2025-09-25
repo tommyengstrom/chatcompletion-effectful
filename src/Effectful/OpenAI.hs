@@ -1,4 +1,3 @@
-{-# LANGUAGE RecordWildCards #-}
 module Effectful.OpenAI where
 
 import Data.Generics.Labels ()
@@ -11,7 +10,7 @@ import OpenAI.V1
 import OpenAI.V1.Chat.Completions
 import Relude hiding (Reader, runReader, ask)
 import Servant.Client (ClientError)
-import ChatCompletion.Error
+import LlmChat.Error
 
 data OpenAI :: Effect where
     -- Send messages to the LLM and get a single response

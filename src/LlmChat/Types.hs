@@ -1,9 +1,9 @@
-module ChatCompletion.Types
-    ( module ChatCompletion.Types
-    , module ChatCompletion.ChatMsg
+module LlmChat.Types
+    ( module LlmChat.Types
+    , module LlmChat.ChatMsg
     ) where
 
-import ChatCompletion.ChatMsg
+import LlmChat.ChatMsg
 import Data.Aeson
 import Data.OpenApi
 import Data.Text (Text)

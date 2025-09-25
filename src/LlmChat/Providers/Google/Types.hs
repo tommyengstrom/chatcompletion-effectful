@@ -1,12 +1,12 @@
 {-# LANGUAGE DeriveGeneric #-}
 
-module ChatCompletion.Providers.Google.Types where
+module LlmChat.Providers.Google.Types where
 
 import Data.Aeson
 import Data.Vector (Vector)
 import Relude
 import Effectful (Eff)
-import ChatCompletion
+import LlmChat
 
 -- | Google API Key
 newtype GoogleApiKey = GoogleApiKey Text

@@ -1,14 +1,14 @@
 {-# LANGUAGE RecordWildCards #-}
 
-module ChatCompletion
+module LlmChat
     ( module X
-    , module ChatCompletion
+    , module LlmChat
     ) where
 
-import ChatCompletion.Effect as X
-import ChatCompletion.Storage.Effect as X
-import ChatCompletion.Tool as X
-import ChatCompletion.Types as X
+import LlmChat.Effect as X
+import LlmChat.Storage.Effect as X
+import LlmChat.Tool as X
+import LlmChat.Types as X
 import Control.Lens ((^.))
 import Data.Aeson
 import Data.Aeson.Key (fromText)
@@ -25,7 +25,7 @@ import Relude
 -- | Send a user message and handle any tool calls automatically
 respondWithTools
     :: ( HasCallStack
-       , ChatCompletionStorage :> es
+       , LlmChatStorage :> es
        , Time :> es
        , Error LlmChatError :> es
        , LlmChat :> es
@@ -43,7 +43,7 @@ respondWithToolsStructured
        , ToSchema a
        , Time :> es
        , FromJSON a
-       , ChatCompletionStorage :> es
+       , LlmChatStorage :> es
        , Error LlmChatError :> es
        , LlmChat :> es
        )
@@ -66,7 +66,7 @@ respondWithToolsJson
      . ( HasCallStack
        , Time :> es
        , Error LlmChatError :> es
-       , ChatCompletionStorage :> es
+       , LlmChatStorage :> es
        , LlmChat :> es
        )
     => [ToolDef es] -- Tools available for this conversation
@@ -82,7 +82,7 @@ respondWithToolsJson tools convId = do
 -- | Send a user message and handle any tool calls automatically
 respondWithTools'
     :: ( HasCallStack
-       , ChatCompletionStorage :> es
+       , LlmChatStorage :> es
        , Time :> es
        , Error LlmChatError :> es
        , LlmChat :> es
@@ -141,7 +141,7 @@ executeToolCalls tools toolCalls = do
 
 -- | Internal helper to handle the tool execution loop
 handleToolLoop
-    :: ( ChatCompletionStorage :> es
+    :: ( LlmChatStorage :> es
        , Time :> es
        , Error LlmChatError :> es
        , LlmChat :> es

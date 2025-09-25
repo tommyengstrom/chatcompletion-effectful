@@ -1,6 +1,6 @@
-module ChatCompletion.Tool where
+module LlmChat.Tool where
 
-import ChatCompletion.Types
+import LlmChat.Types
 import Control.Lens
 import Data.Aeson
 import Data.Aeson.Key (fromText)

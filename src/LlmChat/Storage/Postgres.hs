@@ -2,10 +2,10 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE QuasiQuotes #-}
 
-module ChatCompletion.Storage.Postgres where
+module LlmChat.Storage.Postgres where
 
-import ChatCompletion.Storage.Effect
-import ChatCompletion.Types
+import LlmChat.Storage.Effect
+import LlmChat.Types
 import Control.Lens
 import Data.Aeson (Value, decode, encode, toJSON)
 import Data.Generics.Labels ()
@@ -113,19 +113,19 @@ createPostgresPool config =
 withPooledConnection :: Pool Connection -> (Connection -> IO a) -> IO a
 withPooledConnection = Pool.withResource
 
-runChatCompletionStoragePostgres
+runLlmChatStoragePostgres
     :: forall es a
      . ( IOE :> es
        , Error ChatStorageError :> es
        , Time :> es
        )
     => PostgresSettings
-    -> Eff (ChatCompletionStorage ': es) a
+    -> Eff (LlmChatStorage ': es) a
     -> Eff es a
-runChatCompletionStoragePostgres settings eff = do
+runLlmChatStoragePostgres settings eff = do
     interpret handleStorage eff
   where
-    handleStorage :: EffectHandler ChatCompletionStorage es
+    handleStorage :: EffectHandler LlmChatStorage es
     handleStorage _ = \case
         CreateConversation systemPrompt -> do
             conversationId <- ConversationId <$> liftIO nextRandom
@@ -171,22 +171,22 @@ runChatCompletionStoragePostgres settings eff = do
             pure $ map (\(Only cid) -> cid) result
 
 -- | Run storage with connection pool
-runChatCompletionStoragePostgresWithPool
+runLlmChatStoragePostgresWithPool
     :: forall es a
      . ( IOE :> es
        , Time :> es
        , Error ChatStorageError :> es
        )
     => PostgresConfig
-    -> Eff (ChatCompletionStorage ': es) a
+    -> Eff (LlmChatStorage ': es) a
     -> Eff es a
-runChatCompletionStoragePostgresWithPool config eff = do
+runLlmChatStoragePostgresWithPool config eff = do
     pool' <- liftIO $ createPostgresPool config
     finally
         (interpret (handleStoragePooled pool') eff)
         (liftIO $ Pool.destroyAllResources pool')
   where
-    handleStoragePooled :: Pool Connection -> EffectHandler ChatCompletionStorage es
+    handleStoragePooled :: Pool Connection -> EffectHandler LlmChatStorage es
     handleStoragePooled pool' _ = \case
         CreateConversation systemPrompt -> do
             conversationId <- ConversationId <$> liftIO nextRandom
@@ -248,16 +248,16 @@ runChatCompletionStoragePostgresWithPool config eff = do
             pure $ map (\(Only cid) -> cid) result
 
 -- | Backward compatible function that creates a pool internally
-runChatCompletionStoragePostgres'
+runLlmChatStoragePostgres'
     :: forall es a
      . ( IOE :> es
        , Error ChatStorageError :> es
        , Time :> es
        )
     => ByteString
-    -> Eff (ChatCompletionStorage ': es) a
+    -> Eff (LlmChatStorage ': es) a
     -> Eff es a
-runChatCompletionStoragePostgres' connStr = runChatCompletionStoragePostgresWithPool (defaultPostgresConfig connStr)
+runLlmChatStoragePostgres' connStr = runLlmChatStoragePostgresWithPool (defaultPostgresConfig connStr)
 
 setupTable :: PostgresSettings -> IO ()
 setupTable settings = do

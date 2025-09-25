@@ -1,9 +1,9 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module ChatCompletion.PostgresLogger where
+module LlmChat.PostgresLogger where
 
-import ChatCompletion.Types (ConversationId (..))
+import LlmChat.Types (ConversationId (..))
 import Data.Aeson (FromJSON, Result (..), ToJSON, Value, fromJSON, toJSON)
 import Data.Time
 import Database.PostgreSQL.Simple

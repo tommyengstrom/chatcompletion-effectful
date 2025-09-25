@@ -1,10 +1,10 @@
-module ChatCompletion.Effect
-    ( module ChatCompletion.Effect
-    , module ChatCompletion.Error
+module LlmChat.Effect
+    ( module LlmChat.Effect
+    , module LlmChat.Error
     ) where
 
-import ChatCompletion.Error
-import ChatCompletion.Types
+import LlmChat.Error
+import LlmChat.Types
 import Effectful
 import Effectful.TH
 import Data.Aeson (Value)

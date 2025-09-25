@@ -1,14 +1,14 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module ChatCompletion.Providers.OpenAI.ChatCompletion
-    ( module ChatCompletion.Providers.OpenAI.ChatCompletion
+module LlmChat.Providers.OpenAI.ChatCompletion
+    ( module LlmChat.Providers.OpenAI.ChatCompletion
     , CreateChatCompletion (..)
     ) where
 
-import ChatCompletion.Effect
-import ChatCompletion.Storage.Effect
-import ChatCompletion.Types
+import LlmChat.Effect
+import LlmChat.Storage.Effect
+import LlmChat.Types
 import Control.Lens
 import Data.Aeson
 import Data.Aeson.Key qualified as Key
@@ -56,7 +56,7 @@ defaultChatCompletionSettings =
 runLlmChat
     :: ( Time :> es
        , Error LlmChatError :> es
-       , ChatCompletionStorage :> es
+       , LlmChatStorage :> es
        , OpenAI :> es
        )
     => ChatCompletionSettings es

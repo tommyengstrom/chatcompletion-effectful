@@ -1,10 +1,10 @@
 {-# LANGUAGE RecordWildCards #-}
 
-module ChatCompletion.Providers.Google.Convert where
+module LlmChat.Providers.Google.Convert where
 
-import ChatCompletion.Effect
-import ChatCompletion.Providers.Google.Types
-import ChatCompletion.Types
+import LlmChat.Effect
+import LlmChat.Providers.Google.Types
+import LlmChat.Types
 import Control.Lens hiding ((.=))
 import Data.Aeson
 import Data.Aeson.Key (fromText)

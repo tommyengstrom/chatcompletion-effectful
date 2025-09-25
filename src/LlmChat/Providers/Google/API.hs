@@ -1,6 +1,6 @@
-module ChatCompletion.Providers.Google.API where
+module LlmChat.Providers.Google.API where
 
-import ChatCompletion.Providers.Google.Types
+import LlmChat.Providers.Google.Types
 import Data.Proxy
 import Data.Text (Text)
 import Servant.API

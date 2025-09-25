@@ -1,10 +1,10 @@
 cabal-version: 3.8
 
-name:           chatcompletion-effectful
+name:           llmchat-effectful
 version:        0.1.0.0
-description:    Please see the README on GitHub at <https://github.com/tommyengstrom/chatcompletion-effectful#readme>
-homepage:       https://github.com/tommyengstrom/chatcompletion-effectful#readme
-bug-reports:    https://github.com/tommyengstrom/chatcompletion-effectful/issues
+description:    Please see the README on GitHub at <https://github.com/tommyengstrom/llmchat-effectful#readme>
+homepage:       https://github.com/tommyengstrom/llmchat-effectful#readme
+bug-reports:    https://github.com/tommyengstrom/llmchat-effectful/issues
 author:         Tommy Engström
 maintainer:     tommy@tommyengstrom.com
 copyright:      2025 Tommy Engström
@@ -17,7 +17,7 @@ extra-source-files:
 
 source-repository head
   type: git
-  location: https://github.com/tommyengstrom/chatcompletion-effectful
+  location: https://github.com/tommyengstrom/llmchat-effectful
 
 common shared_opts
   default-language: GHC2024
@@ -35,10 +35,11 @@ common shared_opts
       LambdaCase
       NoFieldSelectors
       NoImplicitPrelude
+      NoStarIsType
       OverloadedLabels
       OverloadedLists
       OverloadedStrings
-      NoStarIsType
+      RecordWildCards
       StrictData
       TemplateHaskell
       TupleSections
@@ -90,21 +91,21 @@ common shared_opts
 library
   import: shared_opts
   exposed-modules:
-      ChatCompletion
-      ChatCompletion.ChatMsg
-      ChatCompletion.Effect
-      ChatCompletion.Error
-      ChatCompletion.PostgresLogger
-      ChatCompletion.Providers.Google
-      ChatCompletion.Providers.Google.API
-      ChatCompletion.Providers.Google.Convert
-      ChatCompletion.Providers.Google.Types
-      ChatCompletion.Providers.OpenAI.ChatCompletion
-      ChatCompletion.Storage.Effect
-      ChatCompletion.Storage.InMemory
-      ChatCompletion.Storage.Postgres
-      ChatCompletion.Tool
-      ChatCompletion.Types
+      LlmChat
+      LlmChat.ChatMsg
+      LlmChat.Effect
+      LlmChat.Error
+      LlmChat.PostgresLogger
+      LlmChat.Providers.Google
+      LlmChat.Providers.Google.API
+      LlmChat.Providers.Google.Convert
+      LlmChat.Providers.Google.Types
+      LlmChat.Providers.OpenAI.ChatCompletion
+      LlmChat.Storage.Effect
+      LlmChat.Storage.InMemory
+      LlmChat.Storage.Postgres
+      LlmChat.Tool
+      LlmChat.Types
       Effectful.OpenAI
   hs-source-dirs: src
   build-depends:
@@ -115,23 +116,23 @@ library
     , servant
     , servant-client
 
-test-suite chatcompletion-effectful-test
+test-suite llmchat-effectful-test
   import: shared_opts
   main-is: Main.hs
   other-modules:
-      ChatCompletion.PostgresLoggerSpec
-      ChatCompletion.PostgresPoolSpec
-      ChatCompletion.PostgresSpec
-      ChatCompletion.Provider.GoogleSpec
-      ChatCompletion.Provider.OpenAISpec
-      ChatCompletion.Storage.InMemorySpec
+      LlmChat.PostgresLoggerSpec
+      LlmChat.PostgresPoolSpec
+      LlmChat.PostgresSpec
+      LlmChat.Provider.GoogleSpec
+      LlmChat.Provider.OpenAISpec
+      LlmChat.Storage.InMemorySpec
       ProviderAgnosticTests
   hs-source-dirs: test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       QuickCheck
     , base64-bytestring
-    , chatcompletion-effectful
+    , llmchat-effectful
     , deepseq
     , hashable
     , hspec

@@ -1,9 +1,9 @@
 {-# LANGUAGE RecordWildCards #-}
 
-module ChatCompletion.Storage.InMemory where
+module LlmChat.Storage.InMemory where
 
-import ChatCompletion.Storage.Effect
-import ChatCompletion.Types
+import LlmChat.Storage.Effect
+import LlmChat.Types
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe
@@ -18,16 +18,16 @@ import Effectful.Concurrent
 import Effectful.Concurrent.STM
 
 
-runChatCompletionStorageInMemory
+runLlmChatStorageInMemory
     :: forall es a
      . ( Time :> es
        , Error ChatStorageError :> es
        , Concurrent :> es
        )
     => TVar (Map ConversationId [ChatMsg])
-    -> Eff (ChatCompletionStorage ': es) a
+    -> Eff (LlmChatStorage ': es) a
     -> Eff es a
-runChatCompletionStorageInMemory tvar = interpret \_ -> \case
+runLlmChatStorageInMemory tvar = interpret \_ -> \case
     CreateConversation systemPrompt -> do
         conversationId <- ConversationId <$> pure (unsafePerformIO nextRandom)
         timestamp <- currentTime
