@@ -17,16 +17,6 @@ A Haskell library for building chat completion systems with OpenAI integration, 
 - **Effect System**: Built on Effectful for composable, testable code
 - **Response Logging**: Optional logging of OpenAI responses for debugging
 
-## Quick Start
-
-### Installation
-
-Add to your `package.yaml` or `.cabal` file:
-
-```yaml
-dependencies:
-  - chatcompletion-effectful
-```
 
 ### Basic Usage
 

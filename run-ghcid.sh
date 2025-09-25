@@ -19,5 +19,4 @@ ghcid \
   --command "hpack;cabal v2-repl --enable-multi-repl lib:chatcompletion-effectful test:chatcompletion-effectful-test" \
   --restart "cabal.project" \
   --restart "chatcompletion-effectful.cabal" \
-  --restart "package.yaml" \
   -o $LOG_FILE

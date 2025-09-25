@@ -1,5 +1,4 @@
 -- Cabal project configuration for chatcompletion-effectful
--- Using hpack to generate the .cabal file from package.yaml
 
 packages: .
 
