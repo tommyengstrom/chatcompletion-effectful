@@ -13,7 +13,6 @@ import Effectful.Dispatch.Dynamic
 import Effectful.Error.Static
 import Prelude
 import Effectful.Time
-import GHC.IO (unsafePerformIO)
 import Effectful.Concurrent
 import Effectful.Concurrent.STM
 
@@ -23,13 +22,14 @@ runLlmChatStorageInMemory
      . ( Time :> es
        , Error ChatStorageError :> es
        , Concurrent :> es
+       , IOE :> es
        )
     => TVar (Map ConversationId [ChatMsg])
     -> Eff (LlmChatStorage ': es) a
     -> Eff es a
 runLlmChatStorageInMemory tvar = interpret \_ -> \case
     CreateConversation systemPrompt -> do
-        conversationId <- ConversationId <$> pure (unsafePerformIO nextRandom)
+        conversationId <- ConversationId <$> liftIO nextRandom
         timestamp <- currentTime
         atomically $
             modifyTVar' tvar (Map.insert conversationId [SystemMsg systemPrompt timestamp])
