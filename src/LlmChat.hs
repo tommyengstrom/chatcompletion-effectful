@@ -1,5 +1,3 @@
-{-# LANGUAGE RecordWildCards #-}
-
 module LlmChat
     ( module X
     , module LlmChat

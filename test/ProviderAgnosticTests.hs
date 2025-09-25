@@ -1,6 +1,6 @@
 module ProviderAgnosticTests where
 
-import ChatCompletion
+import LlmChat
 import Control.Lens (folded, (^..))
 import Data.Aeson
 import Data.Aeson.KeyMap (keys)
@@ -14,12 +14,12 @@ import Relude
 import Test.Hspec
 
 
--- | Common spec that tests basic ChatCompletion functionality
+-- | Common spec that tests basic LlmChat functionality
 -- The runner function should handle setting up the specific provider
 specWithProvider
     :: forall es
      . (Time :> es
-        , ChatCompletionStorage :> es
+        , LlmChatStorage :> es
         , Error LlmChatError :> es
         , LlmChat :> es
         )

@@ -1,10 +1,10 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module ChatCompletion.Storage.InMemorySpec where
+module LlmChat.Storage.InMemorySpec where
 
-import ChatCompletion.Storage.Effect
-import ChatCompletion.Storage.InMemory
-import ChatCompletion.Types
+import LlmChat.Storage.Effect
+import LlmChat.Storage.InMemory
+import LlmChat.Types
 import Control.Lens (folded, reversed, taking, (^..))
 import Data.Generics.Product
 import Data.Generics.Sum
@@ -50,9 +50,9 @@ instance Arbitrary SomeText where
     arbitrary = SomeText . T.pack <$> listOf (choose ('a', 'z'))
 spec :: Spec
 spec =
-    describe "runChatCompletionStorageInMemory" $ do
+    describe "runLlmChatStorageInMemory" $ do
         tvar <- runIO $ newTVarIO (mempty :: Map ConversationId [ChatMsg])
-        specGeneralized (runChatCompletionStorageInMemory tvar)
+        specGeneralized (runLlmChatStorageInMemory tvar)
 
 specGeneralized
     :: ( forall a es
@@ -61,12 +61,12 @@ specGeneralized
             , Concurrent :> es
             , IOE :> es
             )
-         => Eff (ChatCompletionStorage ': es) a
+         => Eff (LlmChatStorage ': es) a
          -> Eff es a
        )
     -> Spec
 specGeneralized runStorage = do
-    describe "ChatCompletionStorage" $ do
+    describe "LlmChatStorage" $ do
         it "Fails to fetch conversation that does not exist" $ do
             property $ \(convId :: ConversationId) -> monadicIO $ do
                 result <-

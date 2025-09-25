@@ -1,12 +1,12 @@
-module ChatCompletion.PostgresLoggerSpec where
+module LlmChat.PostgresLoggerSpec where
 
-import ChatCompletion.PostgresLogger
+import LlmChat.PostgresLogger
     ( JsonField (..)
     , createTableQuery
     , getAllLogs
     , postgresResponseLogger
     )
-import ChatCompletion.Types (ConversationId (..))
+import LlmChat.Types (ConversationId (..))
 import Control.Lens
 import Data.Aeson (Result (..), Value, fromJSON, object, toJSON)
 import Data.Aeson qualified as Aeson

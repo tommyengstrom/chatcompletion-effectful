@@ -1,10 +1,10 @@
-module ChatCompletion.PostgresPoolSpec where
+module LlmChat.PostgresPoolSpec where
 
-import ChatCompletion.Error (LlmChatError)
-import ChatCompletion.Storage.Effect
-import ChatCompletion.Storage.InMemorySpec (specGeneralized)
-import ChatCompletion.Storage.Postgres
-import ChatCompletion.Types
+import LlmChat.Error (LlmChatError)
+import LlmChat.Storage.Effect
+import LlmChat.Storage.InMemorySpec (specGeneralized)
+import LlmChat.Storage.Postgres
+import LlmChat.Types
 import Data.Generics.Labels ()
 import Data.Time
 import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
@@ -37,13 +37,13 @@ spec = describe "PostgreSQL Connection Pooling" $ do
             _ <- execute_ conn $ fromString $ toString $ "DROP TABLE IF EXISTS " <> conversationsTable
             close conn
 
-    describe "runChatCompletionStoragePostgresWithPool" $ do
+    describe "runLlmChatStoragePostgresWithPool" $ do
         -- Clean up before tests, setup table, then run tests with cleanup after
         runIO do
             cleanup
             setupTableWithPool config
         afterAll_ cleanup $
-            specGeneralized (runChatCompletionStoragePostgresWithPool config)
+            specGeneralized (runLlmChatStoragePostgresWithPool config)
 
     describe "Connection pool behavior" $ do
         it "handles concurrent operations efficiently" $ do
@@ -57,7 +57,7 @@ spec = describe "PostgreSQL Connection Pooling" $ do
                     . runTime
                     . runError @LlmChatError
                     . runErrorNoCallStackWith @ChatStorageError (error . show)
-                    $ runChatCompletionStoragePostgresWithPool config
+                    $ runLlmChatStoragePostgresWithPool config
                     $ do
                         -- Each concurrent operation creates and uses a conversation
                         convId <- createConversation $ "Test system prompt " <> show i
@@ -78,7 +78,7 @@ spec = describe "PostgreSQL Connection Pooling" $ do
             cleanup
 
     describe "Backward compatibility" $ do
-        it "runChatCompletionStoragePostgres' works with default pool" $ do
+        it "runLlmChatStoragePostgres' works with default pool" $ do
             cleanup
             -- For backward compatibility test, we need to use config with our test table
             let testConfig =
@@ -97,7 +97,7 @@ spec = describe "PostgreSQL Connection Pooling" $ do
                     . runTime
                 . runError @LlmChatError
                 . runErrorNoCallStackWith @ChatStorageError (error . show)
-                $ runChatCompletionStoragePostgresWithPool testConfig do
+                $ runLlmChatStoragePostgresWithPool testConfig do
                     convId <- createConversation "Backward compatible test"
                     appendUserMessage convId  "Test message"
                     msgs <- getConversation convId

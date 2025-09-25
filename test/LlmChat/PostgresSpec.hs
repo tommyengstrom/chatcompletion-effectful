@@ -1,7 +1,7 @@
-module ChatCompletion.PostgresSpec where
+module LlmChat.PostgresSpec where
 
-import ChatCompletion.Storage.InMemorySpec (specGeneralized)
-import ChatCompletion.Storage.Postgres
+import LlmChat.Storage.InMemorySpec (specGeneralized)
+import LlmChat.Storage.Postgres
 import Data.Time
 import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
 import Database.PostgreSQL.Simple
@@ -9,7 +9,7 @@ import Relude
 import Test.Hspec
 
 spec :: Spec
-spec = describe "runChatCompletionStoragePostgres (with pooling)" $ do
+spec = describe "runLlmChatStoragePostgres (with pooling)" $ do
     -- Create a unique table name based on current time
     conversationsTable <- runIO $ do
         now <- getCurrentTime
@@ -37,4 +37,4 @@ spec = describe "runChatCompletionStoragePostgres (with pooling)" $ do
         cleanup
         setupTableWithPool config
     afterAll_ cleanup
-        $ specGeneralized (runChatCompletionStoragePostgresWithPool config)
+        $ specGeneralized (runLlmChatStoragePostgresWithPool config)

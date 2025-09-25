@@ -1,9 +1,9 @@
-module ChatCompletion.Provider.GoogleSpec where
+module LlmChat.Provider.GoogleSpec where
 
-import ChatCompletion
-import ChatCompletion.Providers.Google
-import ChatCompletion.Providers.Google.Types
-import ChatCompletion.Storage.InMemory
+import LlmChat
+import LlmChat.Providers.Google
+import LlmChat.Providers.Google.Types
+import LlmChat.Storage.InMemory
 import ProviderAgnosticTests
 import Data.Text qualified as T
 import Effectful
@@ -17,7 +17,7 @@ runGoogle
     :: TVar (Map ConversationId [ChatMsg])
     -> Eff
         '[ LlmChat
-         , ChatCompletionStorage
+         , LlmChatStorage
          , Error ChatStorageError
          , Error LlmChatError
          , Time
@@ -38,12 +38,12 @@ runGoogle tvar action = do
         . runTime
         . runErrorNoCallStackWith (error . show)
         . runErrorNoCallStackWith (error . show)
-        . runChatCompletionStorageInMemory tvar
-        . runChatCompletionGoogle settings
+        . runLlmChatStorageInMemory tvar
+        . runLlmChatGoogle settings
         $ action
 
 spec :: Spec
-spec = describe "ChatCompletion Provider - Google" $ do
+spec = describe "LlmChat Provider - Google" $ do
     -- Run common tests
     tvar <- runIO $ newTVarIO mempty
     specWithProvider (runGoogle tvar)

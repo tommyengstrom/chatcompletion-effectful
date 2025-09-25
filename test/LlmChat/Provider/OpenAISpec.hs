@@ -1,8 +1,8 @@
-module ChatCompletion.Provider.OpenAISpec where
+module LlmChat.Provider.OpenAISpec where
 
-import ChatCompletion
+import LlmChat
 import Effectful.OpenAI
-import ChatCompletion.Storage.InMemory
+import LlmChat.Storage.InMemory
 import ProviderAgnosticTests
 import Data.Generics.Labels ()
 import Data.Text qualified as T
@@ -10,7 +10,7 @@ import Effectful
 import Effectful.Error.Static
 import Relude
 import Test.Hspec
-import ChatCompletion.Providers.OpenAI.ChatCompletion
+import LlmChat.Providers.OpenAI.ChatCompletion
 import System.Environment (getEnv)
 import Effectful.Time
 import Effectful.Concurrent
@@ -19,7 +19,7 @@ runEffectStack
     :: TVar (Map ConversationId [ChatMsg])
     -> Eff
         '[ LlmChat
-         , ChatCompletionStorage
+         , LlmChatStorage
          , OpenAI
          , Error ChatStorageError
          , Error LlmChatError
@@ -39,12 +39,12 @@ runEffectStack tvar action = do
         . runErrorNoCallStackWith (error . show)
         . runErrorNoCallStackWith (error . show)
         . runOpenAI cfg
-        . runChatCompletionStorageInMemory tvar
+        . runLlmChatStorageInMemory tvar
         $ runLlmChat defaultChatCompletionSettings action
         -- - $ runChatCompletionOpenAi settings action
 
 spec :: Spec
-spec = describe "ChatCompletion Provider - OpenAI" $ do
+spec = describe "LlmChat Provider - OpenAI" $ do
     -- Run common tests
     tvar <- runIO $ newTVarIO mempty
     specWithProvider (runEffectStack tvar)
