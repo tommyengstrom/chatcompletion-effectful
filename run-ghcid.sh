@@ -5,7 +5,7 @@ set -x
 set -e
 
 # Configuration
-LOG_FILE="ghciwatch.log"
+LOG_FILE="ghcid.log"
 
 echo "Starting ghciwatch"
 echo "Logging to: $LOG_FILE"
