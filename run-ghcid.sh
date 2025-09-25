@@ -15,8 +15,15 @@ echo "----------------------------------------"
 # - hpack before each startup/restart to regenerate .cabal files
 # - cabal repl with the specific test-dev component
 # - output redirected to log file
+#
+#
+components=$(gen-hie |grep component|grep '".*"' -o|sed "s:\"::g" | xargs echo)
+
+echo cabal v2-repl --enable-multi-repl $components
+
 ghcid \
-  --command "hpack;cabal v2-repl --enable-multi-repl lib:chatcompletion-effectful test:chatcompletion-effectful-test" \
+  --command "cabal v2-repl --enable-multi-repl $components" \
   --restart "cabal.project" \
+  --restart "streaker.cabal" \
   --restart "chatcompletion-effectful.cabal" \
   -o $LOG_FILE
