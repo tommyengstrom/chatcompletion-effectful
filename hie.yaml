@@ -1,0 +1,7 @@
+cradle:
+  cabal:
+    - path: "./src"
+      component: "lib:chatcompletion-effectful"
+
+    - path: "./test"
+      component: "chatcompletion-effectful:test:chatcompletion-effectful-test"
