@@ -7,7 +7,6 @@ module LlmChat.Providers.OpenAI.ChatCompletion
     ) where
 
 import LlmChat.Effect
-import LlmChat.Storage.Effect
 import LlmChat.Types
 import Control.Lens
 import Data.Aeson
@@ -24,7 +23,6 @@ import Effectful
 import Effectful.Dispatch.Dynamic
 import Effectful.Error.Static
 import Effectful.OpenAI
-import Effectful.Time
 import OpenAI.V1.Chat.Completions
     ( Content (..)
     , CreateChatCompletion (..)
@@ -41,7 +39,7 @@ import Prelude qualified
 data ChatCompletionSettings es = ChatCompletionSettings
     { model :: Model
     , overrides :: CreateChatCompletion -> CreateChatCompletion
-    , requestLogger :: ConversationId -> NativeMsgFormat -> Eff es ()
+    , requestLogger :: NativeMsgFormat -> Eff es ()
     }
     deriving stock (Generic)
 
@@ -50,21 +48,18 @@ defaultChatCompletionSettings =
     ChatCompletionSettings
         { model = "gpt-5-nano"
         , overrides = Prelude.id
-        , requestLogger = \_ _ -> pure ()
+        , requestLogger = \_ -> pure ()
         }
 
 runLlmChat
-    :: ( Time :> es
-       , Error LlmChatError :> es
-       , LlmChatStorage :> es
+    :: ( Error LlmChatError :> es
        , OpenAI :> es
        )
-    => ChatCompletionSettings es
+    =>ChatCompletionSettings es
     -> Eff (LlmChat ': es) a
     -> Eff es a
 runLlmChat ChatCompletionSettings{..} = interpret \_ -> \case
-    GetLlmResponse tools' responseFormat convId -> do
-        messages <- getConversation convId
+    GetLlmResponse tools' responseFormat messages -> do
         let tools = fmap mkToolFromDeclaration tools'
 
             req :: CreateChatCompletion
@@ -88,38 +83,29 @@ runLlmChat ChatCompletionSettings{..} = interpret \_ -> \case
                                         , schema = Just schema
                                         , strict = Nothing
                                         }
-        requestLogger convId . NativeMsgOut $ toJSON req
+        requestLogger . NativeMsgOut $ toJSON req
         chatCompletionObject <-
             chatCompletion req
                 `catchError` \_ err -> case err of
                     LlmClientError e -> do
-                        requestLogger convId (NativeRequestFailure $ displayException e)
+                        requestLogger (NativeRequestFailure $ displayException e)
                         throwError $ LlmClientError e
                     other -> throwError other
 
-        requestLogger convId . NativeMsgIn $ toJSON chatCompletionObject
-        now <- currentTime
+        requestLogger . NativeMsgIn $ toJSON chatCompletionObject
         openAiMsg <-
             maybe (throwError $ LlmExpectationError "No message in OpenAI response") pure
                 $ chatCompletionObject
                 ^? #choices . taking 1 folded . #message
-        either throwError pure $ toChatMsgIn now openAiMsg
+        either throwError pure $ toChatMsg openAiMsg
 
 toOpenAIMessage :: ChatMsg -> Message (Vector Content)
 toOpenAIMessage msg = case msg of
     SystemMsg{content} -> System{name = Nothing, content = toContentVector content}
     UserMsg{content} -> User{content = toContentVector content, name = Nothing}
-    AssistantMsg{content} ->
+    AssistantMsg{content, toolCalls} ->
         Assistant
             { assistant_content = Just $ toContentVector content
-            , name = Nothing
-            , refusal = Nothing
-            , assistant_audio = Nothing
-            , tool_calls = Nothing
-            }
-    ToolCallMsg{toolCalls} ->
-        Assistant
-            { assistant_content = Nothing
             , name = Nothing
             , refusal = Nothing
             , assistant_audio = Nothing
@@ -161,12 +147,12 @@ mkToolFromDeclaration t =
             }
 
 instance IsChatMsg (Message Text) (Message (Vector Content)) where
-    toChatMsgIn createdAt = \case
-        Assistant{tool_calls = Just tcs} ->
+    toChatMsg = \case
+        Assistant{tool_calls = tcs, assistant_content} ->
             Right
-                ToolCallMsg
+                AssistantMsg
                     { toolCalls = do
-                        tc <- V.toList tcs
+                        tc <- tcs  ^.. _Just . folded
                         pure
                             $ ToolCall
                                 { toolCallId = tc ^. #id . to ToolCallId
@@ -175,16 +161,10 @@ instance IsChatMsg (Message Text) (Message (Vector Content)) where
                                     Right (Object km) -> Map.mapKeys Key.toText (KM.toMap km)
                                     _ -> mempty
                                 }
-                    , createdAt
+                    , content = fromMaybe "" assistant_content
                     }
-        Assistant{assistant_content} ->
-            Right
-                AssistantMsg
-                    { content = fromMaybe "" assistant_content
-                    , createdAt
-                    }
-        System{} -> Left $ LlmExpectationError "System messages are not supported"
-        User{} -> Left $ LlmExpectationError "User messages are not supported"
+        System{content} -> Right $ SystemMsg content
+        User{content} -> Right $ UserMsg content
         Tool{} -> Left $ LlmExpectationError "Tool messages are not supported"
 
     fromChatMsg = toOpenAIMessage

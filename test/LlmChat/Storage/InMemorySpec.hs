@@ -51,8 +51,7 @@ instance Arbitrary SomeText where
 spec :: Spec
 spec =
     describe "runLlmChatStorageInMemory" $ do
-        tvar <- runIO $ newTVarIO (mempty :: Map ConversationId [ChatMsg])
-        specGeneralized (runLlmChatStorageInMemory tvar)
+        specGeneralized runLlmChatStorageInMemory
 
 specGeneralized
     :: ( forall a es
@@ -96,10 +95,9 @@ specGeneralized runStorage = do
                     Set.difference (Set.fromList listAfter) (Set.fromList listBefore)
                         `shouldBe` [convId]
         it "AppendMessage adds messages to the end of the conversation" $
-            property \(SomeText userPrompt1) (SomeText userPrompt2) -> monadicIO do
+            property \(SomeText systemPrompt) (SomeText userPrompt1) (SomeText userPrompt2) -> monadicIO do
                 Right (beforeAppend, afterAppend) <- run $ runEffStack $ runStorage $ do
-                    convIds <- listConversations
-                    convId <- liftIO . generate $ elements convIds
+                    convId <- createConversation systemPrompt
                     conv <- getConversation convId
                     appendUserMessage convId userPrompt1
                     appendUserMessage convId userPrompt2

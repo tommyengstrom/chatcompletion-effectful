@@ -1,38 +1,46 @@
 module LlmChat.Storage.Effect where
 
-import LlmChat.Types
 import Data.Text (Text)
 import Effectful
 import Effectful.TH
-import Effectful.Time
+import LlmChat.Types
 import Prelude
+import Data.Time
+import Control.Lens
+import Data.Generics.Labels ()
+import Data.UUID (UUID)
+import GHC.Generics (Generic)
 
 data LlmChatStorage :: Effect where
     CreateConversation :: SystemPrompt -> LlmChatStorage m ConversationId
     DeleteConversation :: ConversationId -> LlmChatStorage m ()
-    GetConversation :: ConversationId -> LlmChatStorage m [ChatMsg]
+    GetStoredConversation :: ConversationId -> LlmChatStorage m [StoredMsg]
     AppendMessage :: ConversationId -> ChatMsg -> LlmChatStorage m ()
     ListConversations :: LlmChatStorage m [ConversationId]
+
+data StoredMsg = StoredMsg
+  { msg :: ChatMsg
+  , msgId :: UUID
+  , createdAt :: UTCTime
+  } deriving stock (Show, Generic)
 
 type instance DispatchOf LlmChatStorage = 'Dynamic
 
 makeEffect ''LlmChatStorage
 
+getConversation :: LlmChatStorage :> es
+   => ConversationId
+   -> Eff es [ChatMsg]
+getConversation convId = fmap (^. #msg) <$> getStoredConversation convId
+
+
 appendUserMessage
-    :: ( Time :> es
-       , LlmChatStorage :> es
-       )
+    :: LlmChatStorage :> es
     => ConversationId
     -> Text
     -> Eff es ()
 appendUserMessage convId content = do
-    timestamp <- currentTime
-    let userMsgIn =
-            UserMsg
-                { content
-                , hidden = False
-                , createdAt = timestamp
-                }
+    let userMsgIn = UserMsg{content}
     appendMessage convId userMsgIn
 
 data ChatStorageError

@@ -14,8 +14,7 @@ import Effectful.Time
 import Effectful.Concurrent
 
 runGoogle
-    :: TVar (Map ConversationId [ChatMsg])
-    -> Eff
+    :: Eff
         '[ LlmChat
          , LlmChatStorage
          , Error ChatStorageError
@@ -26,7 +25,7 @@ runGoogle
          ]
         a
     -> IO a
-runGoogle tvar action = do
+runGoogle action = do
     apiKey <-
         maybe
             (error "GEMINI_API_KEY not set in environment")
@@ -38,15 +37,14 @@ runGoogle tvar action = do
         . runTime
         . runErrorNoCallStackWith (error . show)
         . runErrorNoCallStackWith (error . show)
-        . runLlmChatStorageInMemory tvar
+        . runLlmChatStorageInMemory
         . runLlmChatGoogle settings
         $ action
 
 spec :: Spec
 spec = describe "LlmChat Provider - Google" $ do
     -- Run common tests
-    tvar <- runIO $ newTVarIO mempty
-    specWithProvider (runGoogle tvar)
+    specWithProvider runGoogle
 
     -- Google-specific tests
     describe "Google-specific features" $ do

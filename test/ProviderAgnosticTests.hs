@@ -9,7 +9,6 @@ import Data.OpenApi (ToSchema)
 import Data.Text qualified as T
 import Effectful
 import Effectful.Error.Static
-import Effectful.Time
 import Relude
 import Test.Hspec
 
@@ -18,8 +17,7 @@ import Test.Hspec
 -- The runner function should handle setting up the specific provider
 specWithProvider
     :: forall es
-     . (Time :> es
-        , LlmChatStorage :> es
+     . ( LlmChatStorage :> es
         , Error LlmChatError :> es
         , LlmChat :> es
         )
@@ -34,12 +32,12 @@ specWithProvider runEffectStack  = do
                 createConversation
                     "Act exactly as a simple calculator. No extra text, just the answer."
             appendUserMessage convId "2 + 2"
-            resp <- getLlmResponse [] Unstructured convId
+            resp <- getLlmResponse [] Unstructured =<< getConversation convId
             appendMessage convId resp
             conv <- getConversation convId
             pure (resp, conv)
         response `shouldSatisfy` \case
-            AssistantMsg t _ -> T.elem '4' t -- More lenient check for different providers
+            AssistantMsg {content} -> T.elem '4' content -- More lenient check for different providers
             _ -> False
         conv `shouldSatisfy` (== 3) . length -- silly test...
 
@@ -49,12 +47,12 @@ specWithProvider runEffectStack  = do
                 createConversation
                     "You are the users assistant. When asked about contacts or phone numbers, use the available tools to find the information."
             appendUserMessage convId "What is my friend John's last name?"
-            msgs <- respondWithTools  [listContacts] convId
+            msgs <- withStorage (respondWithTools [listContacts]) convId
             pure msgs
         response
             `shouldSatisfy` any
                 ( \case
-                    ToolCallMsg{toolCalls} -> any (\ToolCall{toolName} -> toolName == "list_contact") toolCalls
+                    AssistantMsg{toolCalls} -> any (\ToolCall{toolName} -> toolName == "list_contact") toolCalls
                     _ -> False
                 )
 
@@ -65,20 +63,20 @@ specWithProvider runEffectStack  = do
                     "You are the users assistant, always trying to help them without first clearifying what they want. When asked about contacts or phone numbers, use the available tools to find the information."
             appendUserMessage convId "What is John's phone number?"
             msgs <-
-                respondWithTools
-                    [listContacts, showPhoneNumber]
+                withStorage
+                    (respondWithTools [listContacts, showPhoneNumber])
                     convId
             pure msgs
         response
             `shouldSatisfy` any
                 ( \case
-                    ToolCallMsg{toolCalls} -> any (\ToolCall{toolName} -> toolName == "list_contact") toolCalls
+                    AssistantMsg{toolCalls} -> any (\ToolCall{toolName} -> toolName == "list_contact") toolCalls
                     _ -> False
                 )
         response
             `shouldSatisfy` any
                 ( \case
-                    ToolCallMsg{toolCalls} -> any (\ToolCall{toolName} -> toolName == "show_phone_number") toolCalls
+                    AssistantMsg{toolCalls} -> any (\ToolCall{toolName} -> toolName == "show_phone_number") toolCalls
                     _ -> False
                 )
         response
@@ -88,7 +86,9 @@ specWithProvider runEffectStack  = do
                     _ -> False
                 )
         response `shouldSatisfy` (>= 3) . length -- At least 3 messages
-        (response ^.. folded . _Ctor @"ToolCallMsg") `shouldSatisfy` (>= 1) . length
+        let assistantToolCalls =
+                [calls | AssistantMsg{toolCalls = calls} <- response, not (null calls)]
+        assistantToolCalls `shouldSatisfy` (>= 1) . length
         (response ^.. folded . _Ctor @"ToolCallResponseMsg") `shouldSatisfy` (>= 1) . length
         (response ^.. folded . _Ctor @"AssistantMsg") `shouldSatisfy` (>= 1) . length
 
@@ -97,7 +97,7 @@ specWithProvider runEffectStack  = do
             (_, val) <- runEffectStack $ do
                 convId <- createConversation "You are a helpful assistant. Always provide direct answers."
                 appendUserMessage convId "What is 2+2? Reply with a JSON object containing the field 'answer' with the numeric result."
-                respondWithToolsJson [] convId
+                withStorageStructured (respondWithToolsJson []) convId
             val `shouldSatisfy` \v ->
                 case v of
                     Object obj -> "answer" `elem` keys obj
@@ -108,7 +108,7 @@ specWithProvider runEffectStack  = do
                 convId <-
                     createConversation "You are a helpful assistant. Provide structured data when requested."
                 appendUserMessage convId "Tell me about Albert Einstein. Include his name and approximate age at death."
-                respondWithToolsStructured @PersonInfo [] convId
+                withStorageStructured (respondWithToolsStructured @PersonInfo []) convId
             name `shouldSatisfy` T.isInfixOf "Einstein"
             age `shouldSatisfy` (> 70)
 
@@ -118,14 +118,14 @@ specWithProvider runEffectStack  = do
                     createConversation
                         "You are a helpful assistant. Use tools when needed and provide structured responses."
                 appendUserMessage convId "Get John's information and return it as structured data."
-                respondWithToolsStructured @ContactInfo
-                    [listContacts, showPhoneNumber]
+                withStorageStructured
+                    (respondWithToolsStructured @ContactInfo [listContacts, showPhoneNumber])
                     convId
             name `shouldSatisfy` T.isInfixOf "John"
             msgs
                 `shouldSatisfy` any
                     ( \case
-                        ToolCallMsg{} -> True
+                        AssistantMsg{toolCalls} -> not (null toolCalls)
                         _ -> False
                     )
 

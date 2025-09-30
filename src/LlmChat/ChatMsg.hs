@@ -12,7 +12,6 @@ import Data.OpenApi
     )
 import Data.OpenApi.Lens
 import Data.OpenApi.Schema (ToSchema (..))
-import Data.Time
 import Relude
 import LlmChat.Error
 
@@ -20,53 +19,24 @@ import LlmChat.Error
 -- `toChatMsgIn` is subject to change if it turns out that one-to-one conversion isn't
 -- general enough.
 class (ToJSON in_, ToJSON out) => IsChatMsg in_ out | in_ -> out , out -> in_ where
-    toChatMsgIn :: UTCTime -> in_ -> Either LlmChatError ChatMsg
+    toChatMsg :: in_ -> Either LlmChatError ChatMsg
 
     fromChatMsg :: ChatMsg -> out
-
-data ChatMsgIn
-    = SystemMsgIn
-        { content :: Text
-        }
-    | UserMsgIn
-        { content :: Text
-        , hidden :: Bool
-        }
-    | AssistantMsgIn
-        { content :: Text
-        }
-    | ToolCallMsgIn
-        { toolCalls :: [ToolCall]
-        }
-    | ToolCallResponseMsgIn
-        { toolCallId :: ToolCallId
-        , toolResponse :: ToolResponse
-        }
-    deriving stock (Show, Eq, Generic)
-    deriving anyclass (FromJSON, ToJSON, ToSchema)
 
 data ChatMsg
     = SystemMsg
         { content :: Text
-        , createdAt :: UTCTime
         }
     | UserMsg
         { content :: Text
-        , hidden :: Bool
-        , createdAt :: UTCTime
         }
     | AssistantMsg
         { content :: Text
-        , createdAt :: UTCTime
+        , toolCalls :: [ToolCall]
         }
-    | ToolCallMsg
-        { toolCalls :: [ToolCall]
-        , createdAt :: UTCTime
-        }
-    | ToolCallResponseMsg
+    | ToolCallResponseMsg -- FIXME: rename to ToolResponseMsg
         { toolCallId :: ToolCallId
         , toolResponse :: ToolResponse
-        , createdAt :: UTCTime
         }
     deriving stock (Show, Eq, Generic)
     deriving anyclass (FromJSON, ToJSON, ToSchema)
@@ -76,16 +46,15 @@ type ToolDescription = Text
 
 newtype ToolCallId = ToolCallId Text
     deriving stock (Show, Eq, Ord, Generic)
-    deriving newtype (FromJSON, ToJSON, ToSchema)
+    deriving newtype (FromJSON, ToJSON, ToSchema, IsString)
 
 -- | Represents a tool/function call made by the LLM
-data ToolCall
-    = ToolCall
+data ToolCall = ToolCall
     { toolCallId :: ToolCallId
     -- ^ Unique identifier for this tool call
     , toolName :: ToolName
     -- ^ Name of the tool to invoke
-    , toolArgs :: Map Text Value
+    , toolArgs :: Map Text Value -- FIXME: Use `Object`?
     -- ^ Arguments as key-value pairs
     }
     deriving stock (Show, Eq, Generic)

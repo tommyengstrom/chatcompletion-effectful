@@ -16,8 +16,7 @@ import Effectful.Time
 import Effectful.Concurrent
 
 runEffectStack
-    :: TVar (Map ConversationId [ChatMsg])
-    -> Eff
+    :: Eff
         '[ LlmChat
          , LlmChatStorage
          , OpenAI
@@ -29,7 +28,7 @@ runEffectStack
          ]
         a
     -> IO a
-runEffectStack tvar action = do
+runEffectStack action = do
     cfg <- defaultOpenAIConfig . T.pack <$> getEnv "OPENAI_API_KEY"
 
     -- The handlers expect this effect order
@@ -39,15 +38,14 @@ runEffectStack tvar action = do
         . runErrorNoCallStackWith (error . show)
         . runErrorNoCallStackWith (error . show)
         . runOpenAI cfg
-        . runLlmChatStorageInMemory tvar
+        . runLlmChatStorageInMemory
         $ runLlmChat defaultChatCompletionSettings action
         -- - $ runChatCompletionOpenAi settings action
 
 spec :: Spec
 spec = describe "LlmChat Provider - OpenAI" $ do
     -- Run common tests
-    tvar <- runIO $ newTVarIO mempty
-    specWithProvider (runEffectStack tvar)
+    specWithProvider runEffectStack
 
     -- OpenAI-specific tests can be added here
     describe "OpenAI-specific features" $ do

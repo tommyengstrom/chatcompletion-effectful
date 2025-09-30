@@ -7,7 +7,6 @@ import LlmChat.Effect
 import LlmChat.Providers.Google.API
 import LlmChat.Providers.Google.Convert
 import LlmChat.Providers.Google.Types
-import LlmChat.Storage.Effect
 import LlmChat.Types
 import Control.Lens hiding ((.=))
 import Data.Aeson (toJSON)
@@ -16,7 +15,6 @@ import Data.Generics.Labels ()
 import Data.Generics.Product
 import Data.Text qualified as T
 import Data.Text.Lazy qualified as TL
-import Data.Time
 import Data.Vector qualified as V
 import Effectful
 import Effectful.Dispatch.Dynamic
@@ -32,7 +30,7 @@ defaultGoogleSettings apiKey =
         { apiKey = apiKey
         , model = "gemini-2.5-flash"
         , baseUrl = "https://generativelanguage.googleapis.com"
-        , requestLogger = \_ _ -> pure ()
+        , requestLogger = \_ -> pure ()
         }
 
 -- | Run the LlmChat effect using Google's Gemini API
@@ -40,7 +38,6 @@ runLlmChatGoogle
     :: forall es a
      . ( IOE :> es
        , Error LlmChatError :> es
-       , LlmChatStorage :> es
        )
     => GoogleSettings es
     -> Eff (LlmChat ': es) a
@@ -61,14 +58,13 @@ runLlmChatGoogle settings es = do
         -> Eff (LlmChat ': es) a
         -> Eff es a
     runLlmChat generateContent clientEnv = interpret \_ -> \case
-        GetLlmResponse tools' responseFormat convId -> do
+        GetLlmResponse tools' responseFormat messages -> do
             let hasTools = not (null tools')
             let tools =
                     if hasTools
                         then Just $ V.singleton $ GeminiTool $ V.fromList $ fmap mkToolFromDeclaration tools'
                         else Nothing
 
-            messages <- getConversation convId
             let (originalSystemInstruction, otherMessages) = extractSystemMessage messages
 
             -- When we have both tools and structured output, use prompt instructions
@@ -156,13 +152,12 @@ runLlmChatGoogle settings es = do
                         (settings ^. #apiKey . typed @Text)
                         req
 
-            (settings ^. #requestLogger) convId (NativeMsgIn $ toJSON response)
+            (settings ^. #requestLogger) (NativeMsgIn $ toJSON response)
 
             case response ^? #candidates . taking 1 folded . #content of
                 Nothing -> throwError $ LlmExpectationError "No content in Gemini response"
                 Just geminiContent -> do
-                    now <- liftIO getCurrentTime
-                    fromGeminiContent now geminiContent
+                    fromGeminiContent  geminiContent
 
     adapt :: ClientEnv -> ClientM x -> Eff es x
     adapt env m = do

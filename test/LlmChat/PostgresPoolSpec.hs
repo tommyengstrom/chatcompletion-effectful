@@ -1,109 +1,94 @@
 module LlmChat.PostgresPoolSpec where
 
 import LlmChat.Error (LlmChatError)
+import LlmChat.PostgresSpec (postgresStorageBehaviourSpec)
 import LlmChat.Storage.Effect
-import LlmChat.Storage.InMemorySpec (specGeneralized)
 import LlmChat.Storage.Postgres
 import LlmChat.Types
-import Data.Generics.Labels ()
 import Data.Time
 import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
 import Database.PostgreSQL.Simple
 import Effectful
 import Effectful.Error.Static
+import Effectful.PostgreSQL (WithConnection)
+import Effectful.PostgreSQL.Connection.Pool (runWithConnectionPool)
+import Effectful.Time
 import Relude
 import Test.Hspec
 import UnliftIO (forConcurrently)
-import Effectful.Time
+import UnliftIO.Pool (destroyAllResources, mkDefaultPoolConfig, newPool, setNumStripes)
 
 spec :: Spec
 spec = describe "PostgreSQL Connection Pooling" $ do
-    -- Create a unique table name based on current time
-    conversationsTable <- runIO $ do
-        now <- getCurrentTime
-        let unixTime :: String = show $ (floor $ utcTimeToPOSIXSeconds now :: Integer)
-        pure $ "conversations_pool_" <> toText unixTime
-
+    conversationsTable <- runIO newConversationsTable
     let connectionString = "host=localhost port=5432 user=postgres password=postgres dbname=chatcompletion-test"
-    let config =
-            (defaultPostgresConfig connectionString)
-                { conversationsTable = conversationsTable
-                , poolSize = 5
-                , poolStripes = 2
-                }
 
     let cleanup = do
             conn <- connectPostgreSQL connectionString
-            _ <- execute_ conn $ fromString $ toString $ "DROP TABLE IF EXISTS " <> conversationsTable
+            dropTableIfExists conn conversationsTable
             close conn
 
-    describe "runLlmChatStoragePostgresWithPool" $ do
-        -- Clean up before tests, setup table, then run tests with cleanup after
+    describe "runLlmChatStoragePostgres with a pool" $ do
+        pool <- runIO $ makePool connectionString 2 5
+
         runIO do
             cleanup
-            setupTableWithPool config
-        afterAll_ cleanup $
-            specGeneralized (runLlmChatStoragePostgresWithPool config)
+            runEff
+                . runWithConnectionPool pool
+                $ setupTable conversationsTable
+
+        afterAll_ (cleanup *> destroyAllResources pool) do
+            postgresStorageBehaviourSpec pool conversationsTable
 
     describe "Connection pool behavior" $ do
         it "handles concurrent operations efficiently" $ do
-            -- Clean up and setup before this specific test
+            pool <- makePool connectionString 2 5
             cleanup
-            setupTableWithPool config
+            runEff
+                . runWithConnectionPool pool
+                $ setupTable conversationsTable
 
-            -- Run multiple concurrent operations
-            results <- forConcurrently ([1 .. 20] :: [Int]) $ \i -> do
-                runEff
-                    . runTime
-                    . runError @LlmChatError
-                    . runErrorNoCallStackWith @ChatStorageError (error . show)
-                    $ runLlmChatStoragePostgresWithPool config
-                    $ do
-                        -- Each concurrent operation creates and uses a conversation
-                        convId <- createConversation $ "Test system prompt " <> show i
-                        appendUserMessage convId  $ "User message " <> show i
-                        createdAt <- currentTime
-                        appendMessage convId $ AssistantMsg
-                            {content = "Assistant response " <> show i
-                            , createdAt
-                            }
-                        msgs <- getConversation convId
-                        pure (length msgs)
+            let runStack :: Eff '[LlmChatStorage, WithConnection, Error ChatStorageError, Error LlmChatError, Time, IOE] Int -> IO (Either LlmChatError (Either ChatStorageError Int))
+                runStack =
+                    runEff
+                        . runTime
+                        . runErrorNoCallStack @LlmChatError
+                        . runErrorNoCallStack @ChatStorageError
+                        . runWithConnectionPool pool
+                        . runLlmChatStoragePostgres conversationsTable
 
-            -- Check all results succeeded with 3 messages each
-            forM_ results $ \result -> case result of
-                Left err -> expectationFailure $ "Concurrent operation failed: " <> show err
-                Right msgCount -> msgCount `shouldBe` 3
-
-            cleanup
-
-    describe "Backward compatibility" $ do
-        it "runLlmChatStoragePostgres' works with default pool" $ do
-            cleanup
-            -- For backward compatibility test, we need to use config with our test table
-            let testConfig =
-                    PostgresConfig
-                        { connectionString = connectionString
-                        , poolSize = 1
-                        , connectionTimeout = 5
-                        , connectionIdleTime = 60
-                        , poolStripes = 1
-                        , conversationsTable = conversationsTable
+            results <- forConcurrently ([1 .. 20] :: [Int]) $ \i ->
+                runStack do
+                    convId <- createConversation $ "Test system prompt " <> show i
+                    appendUserMessage convId $ "User message " <> show i
+                    appendMessage convId $ AssistantMsg
+                        { content = "Assistant response " <> show i
+                        , toolCalls = []
                         }
-            setupTableWithPool testConfig
-
-            -- Test using the backward compatible function with our test table
-            result <- runEff
-                    . runTime
-                . runError @LlmChatError
-                . runErrorNoCallStackWith @ChatStorageError (error . show)
-                $ runLlmChatStoragePostgresWithPool testConfig do
-                    convId <- createConversation "Backward compatible test"
-                    appendUserMessage convId  "Test message"
                     msgs <- getConversation convId
-                    pure (convId, length msgs)
+                    pure (length msgs)
 
-            case result of
-                Left err -> expectationFailure $ "Unexpected error: " <> show err
-                Right (_, msgCount) -> msgCount `shouldBe` 2
+            forM_ results $ \case
+                Left err -> expectationFailure $ "Concurrent operation failed: " <> show err
+                Right (Left err) -> expectationFailure $ "Concurrent operation failed: " <> show err
+                Right (Right msgCount) -> msgCount `shouldBe` 3
+
+            destroyAllResources pool
             cleanup
+
+  where
+    newConversationsTable = do
+        now <- getCurrentTime
+        let unixTime :: String = show $ (floor $ utcTimeToPOSIXSeconds now :: Integer)
+        pure $ "conversations_pool_" <> toText unixTime
+    makePool connStr stripes maxOpen = do
+        config <- mkDefaultPoolConfig (connectPostgreSQL connStr) close 60 maxOpen
+        newPool $ setNumStripes (Just stripes) config
+    dropTableIfExists conn tableName = do
+        [Only exists] <-
+            query
+                conn
+                "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = ?)"
+                (Only tableName)
+        when exists do
+            void $ execute_ conn $ fromString $ toString $ "DROP TABLE " <> tableName

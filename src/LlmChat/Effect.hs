@@ -18,7 +18,7 @@ data LlmChat :: Effect where
         :: [ToolDeclaration]
         -- ^ Available tools for this request
         -> ResponseFormat
-        -> ConversationId
+        -> [ChatMsg]
         -> LlmChat m ChatMsg
         -- ^ Single response message, can be tool call that requires resolving.
 

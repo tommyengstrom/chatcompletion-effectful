@@ -2,9 +2,6 @@
 
 module LlmChat.Providers.Google.Convert where
 
-import LlmChat.Effect
-import LlmChat.Providers.Google.Types
-import LlmChat.Types
 import Control.Lens hiding ((.=))
 import Data.Aeson
 import Data.Aeson.Key (fromText)
@@ -14,55 +11,49 @@ import Data.Generics.Labels ()
 import Data.Generics.Product
 import Data.Map qualified as Map
 import Data.Text qualified as T
-import Data.Time
+import Data.Text.Lens (unpacked)
 import Data.Vector qualified as V
 import Effectful
 import Effectful.Error.Static
+import LlmChat.Providers.Google.Types
+import LlmChat.Types
+import LlmChat.Error
 import Relude
-import Data.Text.Lens (unpacked)
 
--- | Clean JSON response by removing markdown code blocks if present
--- Google often wraps JSON responses in ```json ... ``` blocks
+-- | Clean JSON response by removing markdown code blocks if present.
 cleanMarkdownJson :: Text -> Text
 cleanMarkdownJson t =
     let stripped = T.strip t
-        -- Remove ```json prefix
-        withoutPrefix =
-            if "```json" `T.isPrefixOf` stripped
-                then T.drop 7 stripped
-                else
-                    if "```" `T.isPrefixOf` stripped
-                        then T.drop 3 stripped
-                        else stripped
-        -- Remove ``` suffix
+        withoutPrefix
+            | "```json" `T.isPrefixOf` stripped = T.drop 7 stripped
+            | "```" `T.isPrefixOf` stripped = T.drop 3 stripped
+            | otherwise = stripped
         withoutSuffix =
             if "```" `T.isSuffixOf` T.strip withoutPrefix
                 then T.dropEnd 3 (T.strip withoutPrefix)
                 else withoutPrefix
      in T.strip withoutSuffix
 
--- | Convert ChatMsg to GeminiContent
+-- | Convert internal chat messages to Gemini content payloads.
 toGeminiContent :: ChatMsg -> Maybe GeminiContent
 toGeminiContent msg = case msg of
-    SystemMsg{} -> Nothing -- System messages are handled separately via systemInstruction
+    SystemMsg{} -> Nothing -- handled separately
     UserMsg{content} ->
         Just
             $ GeminiContent
                 { parts = V.singleton $ GeminiTextPart content
                 , role = "user"
                 }
-    AssistantMsg{content} ->
-        Just
-            $ GeminiContent
-                { parts = V.singleton $ GeminiTextPart content
-                , role = "model"
-                }
-    ToolCallMsg{toolCalls} ->
-        Just
-            $ GeminiContent
-                { parts = V.fromList $ fmap translateToolCall toolCalls
-                , role = "model"
-                }
+    AssistantMsg{content, toolCalls} ->
+        let textParts
+                | T.null content = []
+                | otherwise = [GeminiTextPart content]
+            toolCallParts = translateToolCall <$> toolCalls
+         in Just
+                $ GeminiContent
+                    { parts = V.fromList $ textParts <> toolCallParts
+                    , role = "model"
+                    }
     ToolCallResponseMsg{toolCallId, toolResponse} ->
         Just
             $ GeminiContent
@@ -84,7 +75,7 @@ toGeminiContent msg = case msg of
                 , args = Object (KM.fromMap (Map.mapKeys fromText (tc ^. #toolArgs)))
                 }
 
--- | Convert ToolDeclaration to GeminiFunctionDeclaration
+-- | Convert tool declarations to Gemini function declarations.
 mkToolFromDeclaration :: ToolDeclaration -> GeminiFunctionDeclaration
 mkToolFromDeclaration t =
     GeminiFunctionDeclaration
@@ -101,53 +92,38 @@ mkToolFromDeclaration t =
         Array arr -> Array $ fmap removeUnsupportedSchemaProps arr
         v -> v
 
--- | Extract system message from message list
+-- | Peel off a system instruction from the message list when present.
 extractSystemMessage :: [ChatMsg] -> (Maybe GeminiContent, [ChatMsg])
 extractSystemMessage msgs = case msgs of
-    (SystemMsg content _ : rest) ->
+    (SystemMsg{content} : rest) ->
         ( Just
             $ GeminiContent
                 { parts = V.singleton $ GeminiTextPart content
-                , role = "user" -- Gemini expects "user" role for system instruction
+                , role = "user" -- Gemini expects the system prompt under this role
                 }
         , rest
         )
     _ -> (Nothing, msgs)
 
--- | Convert GeminiContent to ChatMsg
+-- | Convert Gemini content back into the internal chat message representation.
 fromGeminiContent
-    :: Error LlmChatError :> es => UTCTime -> GeminiContent -> Eff es ChatMsg
-fromGeminiContent now content = case content ^. #role of
-    "model" -> case V.toList (content ^. #parts) of
-        [GeminiTextPart text] ->
-            pure
-                $ AssistantMsg
-                    { content = cleanMarkdownJson text
-                    , createdAt = now
-                    }
-        partsList | any isFunctionCall partsList -> do
-            let functionCalls = [fc | GeminiFunctionCallPart fc <- partsList]
-            pure
-                $ ToolCallMsg
-                    { toolCalls = zipWith convertFunctionCallWithIndex [1 ..] functionCalls
-                    , createdAt = now
-                    }
-        partsList ->
-            -- If we have multiple parts that aren't function calls, concatenate text parts
-            -- This can happen when Google returns structured JSON after tool calls
-            let textParts = [text | GeminiTextPart text <- partsList]
-                combinedText = T.intercalate "" textParts
-                -- Clean markdown code blocks that Google often adds around JSON
-                cleanedText = cleanMarkdownJson combinedText
-             in if null textParts
-                    then
-                        throwError $ LlmExpectationError "Unexpected model content structure: no text or function calls"
-                    else
-                        pure
-                            $ AssistantMsg
-                                { content = cleanedText
-                                , createdAt = now
-                                }
+    :: Error LlmChatError :> es => GeminiContent -> Eff es ChatMsg
+fromGeminiContent content = case content ^. #role of
+    "model" -> do
+        let partsList = V.toList (content ^. #parts)
+            textParts = [text | GeminiTextPart text <- partsList]
+            combinedText = T.intercalate "" textParts
+            cleanedText = cleanMarkdownJson combinedText
+            functionCalls = [fc | GeminiFunctionCallPart fc <- partsList]
+            assistantToolCalls = zipWith convertFunctionCallWithIndex [1 ..] functionCalls
+        if null textParts && null functionCalls
+            then throwError $ LlmExpectationError "Unexpected model content structure: no text or function calls"
+            else
+                pure
+                    $ AssistantMsg
+                        { content = if null textParts then "" else cleanedText
+                        , toolCalls = assistantToolCalls
+                        }
     _ ->
         throwError
             $ LlmExpectationError
@@ -156,15 +132,12 @@ fromGeminiContent now content = case content ^. #role of
             ^. #role
             . unpacked
   where
-    isFunctionCall (GeminiFunctionCallPart _) = True
-    isFunctionCall _ = False
-
     convertFunctionCallWithIndex :: Int -> GeminiFunctionCall -> ToolCall
     convertFunctionCallWithIndex idx fc =
         ToolCall
-            { toolCallId = ToolCallId $ fc ^. #name <> "_" <> T.pack (show idx) -- Add index for uniqueness
+            { toolCallId = ToolCallId $ fc ^. #name <> "_" <> T.pack (show idx)
             , toolName = fc ^. #name
             , toolArgs = case fc ^. #args of
                 Object km -> Map.mapKeys Key.toText (KM.toMap km)
-                _ -> mempty -- If not an object, return empty map
+                _ -> mempty
             }

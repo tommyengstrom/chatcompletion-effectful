@@ -74,6 +74,7 @@ common shared_opts
     , containers
     , effectful
     , effectful-th
+    , effectful-postgresql
     , generic-lens
     , http-types
     , lens
@@ -90,6 +91,8 @@ common shared_opts
 
 library
   import: shared_opts
+  mixins:
+    , effectful-core (Effectful.Internal.Monad)
   exposed-modules:
       LlmChat
       LlmChat.ChatMsg
@@ -112,6 +115,7 @@ library
     , http-api-data
     , http-client
     , http-client-tls
+    , effectful-core
     , resource-pool
     , servant
     , servant-client
@@ -133,12 +137,20 @@ test-suite llmchat-effectful-test
       QuickCheck
     , base64-bytestring
     , llmchat-effectful
+    , effectful-core
     , deepseq
     , hashable
     , hspec
     , mtl
     , pretty-simple
     , unordered-containers
+    , unliftio-pool
     , yaml
 
-
+executable minimal-example
+  import: shared_opts
+  hs-source-dirs: app
+  main-is: MinimalExample.hs
+  build-depends:
+      llmchat-effectful
+    , stm

@@ -17,7 +17,7 @@ data GoogleSettings es = GoogleSettings
     { apiKey :: GoogleApiKey
     , model :: Text
     , baseUrl :: Text
-    , requestLogger :: ConversationId -> NativeMsgFormat -> Eff es ()
+    , requestLogger :: NativeMsgFormat -> Eff es ()
     }
     deriving stock (Generic)
 
