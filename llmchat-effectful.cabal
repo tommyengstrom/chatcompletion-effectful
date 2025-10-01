@@ -81,6 +81,7 @@ common shared_opts
     , monad-time-effectful
     , openai
     , openapi3
+    , servant-client
     , postgresql-simple
     , relude
     , text

@@ -88,7 +88,7 @@ runLlmChat ChatCompletionSettings{..} = interpret \_ -> \case
             chatCompletion req
                 `catchError` \_ err -> case err of
                     LlmClientError e -> do
-                        requestLogger (NativeRequestFailure $ displayException e)
+                        requestLogger (NativeRequestFailure e)
                         throwError $ LlmClientError e
                     other -> throwError other
 
